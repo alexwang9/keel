@@ -42,17 +42,17 @@ Done when:
 - [x] `renderIssueBody(ticket, idToIssueNumber)` / `parseIssueBody(body)` round-trip (`Depends on #N`, acceptance checklist, `<!-- keel:ticket=Tn -->` marker); tested
 - [x] Committed
 
-## [ ] Phase 3: GitHub sign-in
+## [x] Phase 3: GitHub sign-in (`aeeae44`, `c41da4a`, `294f7ca`, `6d7379e`)
 
 Done when:
 
-- [ ] OAuth App flow with `@octokit/oauth-methods`: `/api/auth/login` (crypto-random state; PKCE if GitHub supports it for OAuth Apps), `/api/auth/callback`, `/api/auth/logout`
-- [ ] Scope requested is exactly what DECISIONS.md says (`public_repo` unless changed)
-- [ ] Session in an `iron-session` cookie (httpOnly, secure, sameSite=lax) holding token + login; `getSession()` is `server-only`
-- [ ] Allowlist enforced (`ALLOWED_GITHUB_LOGINS`); non-allowlisted users see a friendly page and get no session
-- [ ] Protected app routes redirect to sign-in; the header shows avatar, login and sign-out
-- [ ] Tests: callback happy path, state mismatch, allowlist rejection (GitHub mocked with MSW), and an assertion that no response body or client prop contains the token
-- [ ] Committed
+- [x] OAuth App flow with `@octokit/oauth-methods`: `/api/auth/login` (crypto-random state; PKCE `S256`, which GitHub supports for OAuth Apps), `/api/auth/callback`, `/api/auth/logout`
+- [x] Scope requested is exactly what DECISIONS.md says (`public_repo`)
+- [x] Session in an `iron-session` cookie (httpOnly, secure, sameSite=lax) holding token + login; `getSession()` is `server-only`
+- [x] Allowlist enforced (`ALLOWED_GITHUB_LOGINS`); non-allowlisted users see a friendly page, get no session, and have their grant deleted
+- [x] Protected app routes redirect to sign-in; the header shows avatar, login and sign-out
+- [x] Tests: callback happy path, state mismatch, allowlist rejection (GitHub mocked with MSW), and an assertion that no response body or client prop contains the token
+- [x] Committed
 
 ## [ ] Phase 4: Interview backend
 
