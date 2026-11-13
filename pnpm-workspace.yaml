@@ -1,0 +1,11 @@
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+
+# eslint-config-next 16.4's plugins (import, jsx-a11y, react) still declare eslint <=9 peers,
+# but their rules run correctly on ESLint 10 (checked in Phase 0). See docs/DECISIONS.md.
+peerDependencyRules:
+  allowedVersions:
+    eslint-plugin-import>eslint: "10"
+    eslint-plugin-jsx-a11y>eslint: "10"
+    eslint-plugin-react>eslint: "10"
