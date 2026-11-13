@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { INTERVIEW_TOOL_NAMES } from "@/lib/llm/interview/tools";
+import { INTERVIEW_TOOL_NAMES } from "@/lib/llm/interview/tool-names";
 import { LIMITS, type TranscriptMessage } from "@/lib/spec/schema";
 
 /**
