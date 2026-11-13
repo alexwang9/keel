@@ -86,7 +86,7 @@ Carried from Phase 4 and done: the billing failure now has its own `billing` cop
 
 Carried to Phase 12: the UI works but looks rough. Give every screen a visual design pass alongside the empty, loading and error state review.
 
-## [x] Phase 6: Spec review, edit and approve (`4eb35cd`, 6b commit)
+## [x] Phase 6: Spec review, edit and approve (`4eb35cd`, `5d0380f`)
 
 Split into 6a and 6b on one branch (Rule 3: ~1,700 and ~930 inserted lines, tests included; the owner chose a single PR).
 
