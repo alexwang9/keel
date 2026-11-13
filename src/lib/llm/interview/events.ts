@@ -8,6 +8,7 @@ export const INTERVIEW_ERROR_CODES = [
   "connection",
   "bad_request",
   "server_config",
+  "billing",
   "refusal",
   "max_tokens",
   "loop_limit",

@@ -4,7 +4,11 @@ import { z } from "zod";
 import { FINISH_INTERVIEW, UPDATE_SPEC } from "@/lib/llm/interview/tool-names";
 import { SpecPatchSchema } from "@/lib/spec/schema";
 
-export { FINISH_INTERVIEW, INTERVIEW_TOOL_NAMES, UPDATE_SPEC } from "@/lib/llm/interview/tool-names";
+export {
+  FINISH_INTERVIEW,
+  INTERVIEW_TOOL_NAMES,
+  UPDATE_SPEC,
+} from "@/lib/llm/interview/tool-names";
 
 export const UpdateSpecInputSchema = z.object({ ops: SpecPatchSchema });
 export const FinishInterviewInputSchema = z.object({});
