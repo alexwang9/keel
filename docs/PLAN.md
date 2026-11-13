@@ -31,16 +31,16 @@ Done when:
 - [x] `renderTranscriptMarkdown(messages)` for `docs/interview.md`; tested
 - [x] Committed
 
-## [ ] Phase 2: Ticket domain core (pure, no UI)
+## [x] Phase 2: Ticket domain core (pure, no UI) (`0422fba`, `3e43648`, `8600c48`, `711d5a3`)
 
 Done when:
 
-- [ ] `src/lib/tickets/schema.ts`: ticket schema (local id, title, description, acceptance checks, `S|M|L`, dependency ids)
-- [ ] `validateDag(tickets)` reports unknown references, self-references and cycles (with the cycle path); tested, including large and edge cases
-- [ ] `topoSort(tickets)`: stable, deterministic order; tested
-- [ ] Edit-proposal op schema + `applyProposalOps(tickets, acceptedOps)` that re-validates the DAG; tested
-- [ ] `renderIssueBody(ticket, idToIssueNumber)` / `parseIssueBody(body)` round-trip (`Depends on #N`, acceptance checklist, `<!-- keel:ticket=Tn -->` marker); tested
-- [ ] Committed
+- [x] `src/lib/tickets/schema.ts`: ticket schema (local id, title, description, acceptance checks, `S|M|L`, dependency ids)
+- [x] `validateDag(tickets)` reports unknown references, self-references and cycles (with the cycle path); tested, including large and edge cases
+- [x] `topoSort(tickets)`: stable, deterministic order; tested
+- [x] Edit-proposal op schema + `applyProposalOps(tickets, acceptedOps)` that re-validates the DAG; tested
+- [x] `renderIssueBody(ticket, idToIssueNumber)` / `parseIssueBody(body)` round-trip (`Depends on #N`, acceptance checklist, `<!-- keel:ticket=Tn -->` marker); tested
+- [x] Committed
 
 ## [ ] Phase 3: GitHub sign-in
 
