@@ -103,7 +103,7 @@ Done when:
 
 Carried to Phase 12: the chat shows the model's Markdown raw (e.g. `**Name:**`); render it, or tell the model to write plain text.
 
-## [~] Phase 7: Ticket generation (`6724814`, 7b pending hash)
+## [~] Phase 7: Ticket generation (`6724814`, `03ef8d3`)
 
 Split into 7a (backend) and 7b (client state and UI) on one branch (Rule 3; the owner chose one PR, as for Phase 6).
 
