@@ -1,5 +1,6 @@
 import type { TurnError } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
+import { isSpecComplete } from "@/lib/spec/complete";
 import type { Spec, SpecDraft } from "@/lib/spec/schema";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 
@@ -30,6 +31,12 @@ export type WorkspaceAction =
   | { type: "complete"; now: string; spec: Spec }
   | { type: "finished" }
   | { type: "error"; error: TurnError }
+  // A draft already validated by `applySpecPatch`. Editing an approved spec reopens review.
+  | { type: "editDraft"; now: string; draft: SpecDraft }
+  | { type: "approve"; now: string }
+  | { type: "reopen"; now: string }
+  // Appends the user's note and edit summary, and resumes the interview.
+  | { type: "backToInterview"; now: string; text: string }
   | { type: "reset" };
 
 const idleTransient = (): Transient => ({
@@ -84,6 +91,7 @@ function start(state: WorkspaceState, id: string, now: string, text: string): Wo
     history: [{ role: "user", content: text }],
     draft: {},
     spec: null,
+    approved: null,
   };
   // V0 keeps one project: starting a new one replaces whatever was stored.
   return {
@@ -99,6 +107,34 @@ function turn(state: WorkspaceState, now: string, messages: HistoryMessage[]): W
     ...(pendingDraft ? { draft: pendingDraft } : {}),
   }));
   return withTransient(next, { streamingText: "", pendingDraft: null });
+}
+
+const reviewing = (project: Project): boolean =>
+  project.stage === "review" || project.stage === "approved";
+
+function editDraft(state: WorkspaceState, now: string, draft: SpecDraft): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (!project || !reviewing(project)) return state;
+  return updateProject(state, now, () => ({ draft, stage: "review" }));
+}
+
+// Approving is gated here too, not just by the disabled button.
+function approve(state: WorkspaceState, now: string): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (project?.stage !== "review") return state;
+  const result = isSpecComplete(project.draft);
+  if (!result.complete) return state;
+  return updateProject(state, now, () => ({ stage: "approved", approved: result.spec }));
+}
+
+function backToInterview(state: WorkspaceState, now: string, text: string): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (!project || !reviewing(project)) return state;
+  const next = updateProject(state, now, () => ({
+    stage: "interview",
+    history: [...project.history, { role: "user", content: text }],
+  }));
+  return withTransient(next, streaming);
 }
 
 /** Pure state transitions for the workspace. Ids and timestamps come in on the action. */
@@ -129,6 +165,16 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case "error":
       // Drop everything provisional; the stored history ends where the last turn committed.
       return withTransient(state, { ...idleTransient(), status: "error", error: action.error });
+    case "editDraft":
+      return editDraft(state, action.now, action.draft);
+    case "approve":
+      return approve(state, action.now);
+    case "reopen": {
+      if (currentProject(state.persisted)?.stage !== "approved") return state;
+      return updateProject(state, action.now, () => ({ stage: "review" }));
+    }
+    case "backToInterview":
+      return backToInterview(state, action.now, action.text);
     case "reset":
       return initialWorkspace(emptyState());
   }

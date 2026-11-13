@@ -4,8 +4,9 @@ import { useState } from "react";
 import { ChatPanel } from "@/components/interview/ChatPanel";
 import { CorruptStatePrompt } from "@/components/interview/CorruptStatePrompt";
 import { SpecPanel } from "@/components/interview/SpecPanel";
-import { SpecReview } from "@/components/interview/SpecReview";
-import { useWorkspace } from "@/components/interview/useWorkspace";
+import { useWorkspace, type Workspace as WorkspaceApi } from "@/components/interview/useWorkspace";
+import { ApprovedSpec } from "@/components/review/ApprovedSpec";
+import { SpecReview } from "@/components/review/SpecReview";
 import { awaitingReply } from "@/lib/state/reducer";
 import { emptyState, type PersistedState } from "@/lib/state/schema";
 import {
@@ -33,6 +34,41 @@ function SaveWarning({ problem }: { problem: SaveProblem | null }) {
   );
 }
 
+/** The screen for the project's stage: interview chat, spec review, or the approved spec. */
+function Stage({ workspace }: { workspace: WorkspaceApi }) {
+  const { project, state } = workspace;
+  const { transient } = state;
+
+  if (project?.stage === "review") {
+    return (
+      <SpecReview
+        draft={project.draft}
+        baseline={project.spec}
+        onSave={workspace.editSpec}
+        onApprove={workspace.approve}
+        onBackToInterview={workspace.backToInterview}
+      />
+    );
+  }
+  if (project?.stage === "approved" && project.approved) {
+    return <ApprovedSpec spec={project.approved} onEdit={workspace.reopen} />;
+  }
+  return (
+    <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_22rem]">
+      <ChatPanel
+        history={project?.history ?? []}
+        streamingText={transient.streamingText}
+        status={transient.status}
+        error={transient.error}
+        awaitingReply={project ? awaitingReply(project) : false}
+        onSend={workspace.send}
+        onRetry={workspace.retry}
+      />
+      <SpecPanel draft={transient.pendingDraft ?? project?.draft ?? {}} />
+    </div>
+  );
+}
+
 interface LoadedWorkspaceProps {
   initial: PersistedState;
   storage: Storage | null;
@@ -41,8 +77,7 @@ interface LoadedWorkspaceProps {
 
 function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
   const workspace = useWorkspace(initial, storage, problem);
-  const { project, state } = workspace;
-  const { transient } = state;
+  const { project } = workspace;
 
   const startOver = () => {
     if (window.confirm("Start over? This deletes the current interview and spec.")) {
@@ -60,22 +95,7 @@ function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
           </button>
         </div>
       )}
-      {project?.stage === "review" && project.spec ? (
-        <SpecReview spec={project.spec} />
-      ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_22rem]">
-          <ChatPanel
-            history={project?.history ?? []}
-            streamingText={transient.streamingText}
-            status={transient.status}
-            error={transient.error}
-            awaitingReply={project ? awaitingReply(project) : false}
-            onSend={workspace.send}
-            onRetry={workspace.retry}
-          />
-          <SpecPanel draft={transient.pendingDraft ?? project?.draft ?? {}} />
-        </div>
-      )}
+      <Stage workspace={workspace} />
     </div>
   );
 }

@@ -7,7 +7,7 @@ export const STORAGE_KEY = "keel:project:v1";
 export const STATE_VERSION = 1;
 
 /** Where a project is in the flow. Later phases add ticket and creation stages. */
-export const STAGES = ["interview", "review"] as const;
+export const STAGES = ["interview", "review", "approved"] as const;
 
 export const ProjectSchema = z.object({
   id: z.uuid(),
@@ -16,9 +16,14 @@ export const ProjectSchema = z.object({
   stage: z.enum(STAGES),
   // Committed turns only: never ends partway through a model response.
   history: z.array(HistoryMessageSchema).max(HISTORY_LIMITS.messages),
+  // The working copy: the interview fills it, and the review form edits it.
   draft: SpecDraftSchema,
-  // Set when the interview completes; Phase 6 edits it.
+  // The spec as of the last completed interview: what the model last saw. "Back to interview"
+  // describes the draft's changes against it.
   spec: SpecSchema.nullable(),
+  // The spec as of the last Approve. Kept when an edit reopens review, so tickets generated from
+  // it can tell they are stale. Defaulted so states saved before Phase 6 still load.
+  approved: SpecSchema.nullable().default(null),
 });
 
 /**
