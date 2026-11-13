@@ -4,39 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Workspace } from "@/components/interview/Workspace";
 import type { TicketEvent } from "@/lib/llm/tickets/events";
 import { SpecSchema, type Spec } from "@/lib/spec/schema";
-import { PersistedStateSchema, STORAGE_KEY, type Project } from "@/lib/state/schema";
 import { completeDraft } from "@/test/fixtures/spec";
 import { shelfTickets, ticket } from "@/test/fixtures/tickets";
 import { events, sseApi, type SseReply } from "@/test/msw/sse-routes";
+import { spec, storedProject as project, storeProject as store, T0 } from "@/test/stored-project";
 
-const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
-const T0 = "2026-11-12T10:00:00.000Z";
-const spec = SpecSchema.parse(completeDraft);
 const renamed: Spec = SpecSchema.parse({ ...completeDraft, name: "Shelfie" });
-
-function store(extra: Partial<Project>) {
-  const project = {
-    id: ID,
-    createdAt: T0,
-    updatedAt: T0,
-    stage: "approved",
-    history: [{ role: "user", content: "hi" }],
-    draft: completeDraft,
-    spec,
-    approved: spec,
-    tickets: null,
-    ...extra,
-  };
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ version: 1, currentProjectId: ID, projects: { [ID]: project } }),
-  );
-}
-
-const project = () => {
-  const raw = localStorage.getItem(STORAGE_KEY) ?? "null";
-  return Object.values(PersistedStateSchema.parse(JSON.parse(raw)).projects)[0];
-};
 
 const ticketApi = (replies: SseReply<TicketEvent>[]) => sseApi("/api/tickets/generate", replies);
 const complete: TicketEvent = { type: "complete", tickets: shelfTickets };
@@ -161,7 +134,9 @@ describe("stale tickets", () => {
     await userEvent.click(within(notice).getByRole("button", { name: "Regenerate tickets" }));
 
     expect(confirm).toHaveBeenCalled();
-    expect(await screen.findByText("Vote on the next book")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("listitem", { name: "T4: Vote on the next book" }),
+    ).toBeInTheDocument();
     expect(api.bodies).toEqual([{ spec: renamed }]);
     expect(project()?.tickets).toMatchObject({ items: shelfTickets, source: renamed });
     expect(screen.queryByText(/may be out of date/)).not.toBeInTheDocument();
@@ -179,6 +154,6 @@ describe("stale tickets", () => {
     await userEvent.click(screen.getByRole("button", { name: "Regenerate tickets" }));
 
     expect(api.bodies).toEqual([]);
-    expect(project()?.tickets).toEqual(old);
+    expect(project()?.tickets).toEqual({ ...old, checked: old.items });
   });
 });

@@ -16,6 +16,7 @@ import {
 } from "@/lib/state/reducer";
 import type { PersistedState, Project } from "@/lib/state/schema";
 import { saveState, type SaveProblem } from "@/lib/state/storage";
+import { deleteTicket, saveTicket } from "@/lib/tickets/edit";
 import type { Ticket } from "@/lib/tickets/schema";
 
 export interface Workspace {
@@ -32,6 +33,9 @@ export interface Workspace {
   backToInterview: (note: string) => Result<void, string>;
   ticketsGenerated: (tickets: Ticket[], source: Spec) => void;
   viewTickets: () => void;
+  // Ticket list edits; errors leave the list unchanged. Dependency problems aren't errors.
+  saveTicket: (ticket: Ticket) => Result<void, string[]>;
+  deleteTicket: (id: string) => Result<void, string[]>;
 }
 
 const now = (): string => new Date().toISOString();
@@ -163,6 +167,26 @@ export function useWorkspace(
   );
   const viewTickets = useCallback(() => apply({ type: "viewTickets", now: now() }), [apply]);
 
+  const editTickets = useCallback(
+    (change: (tickets: Ticket[]) => Result<Ticket[], string[]>): Result<void, string[]> => {
+      const tickets = currentProject(stateRef.current.persisted)?.tickets;
+      if (!tickets) return err(["there are no tickets to edit"]);
+      const result = change(tickets.items);
+      if (!result.ok) return result;
+      apply({ type: "editTickets", now: now(), tickets: result.value });
+      return ok(undefined);
+    },
+    [apply],
+  );
+  const saveTicketEdit = useCallback(
+    (ticket: Ticket) => editTickets((tickets) => saveTicket(tickets, ticket)),
+    [editTickets],
+  );
+  const deleteTicketEdit = useCallback(
+    (id: string) => editTickets((tickets) => deleteTicket(tickets, id)),
+    [editTickets],
+  );
+
   return {
     state,
     project: currentProject(state.persisted),
@@ -176,5 +200,7 @@ export function useWorkspace(
     backToInterview,
     ticketsGenerated,
     viewTickets,
+    saveTicket: saveTicketEdit,
+    deleteTicket: deleteTicketEdit,
   };
 }

@@ -3,6 +3,7 @@ import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { SpecSchema } from "@/lib/spec/schema";
 import {
   awaitingReply,
+  createBlockers,
   currentProject,
   initialWorkspace,
   ticketsStale,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/state/reducer";
 import { emptyState, PersistedStateSchema, type Project } from "@/lib/state/schema";
 import { completeDraft } from "@/test/fixtures/spec";
-import { shelfTickets } from "@/test/fixtures/tickets";
+import { shelfTickets, ticket } from "@/test/fixtures/tickets";
 
 const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
 const T0 = "2026-11-12T10:00:00.000Z";
@@ -259,9 +260,10 @@ describe("workspaceReducer", () => {
 
       expect(project(state)).toMatchObject({
         stage: "tickets",
-        tickets: { items: shelfTickets, source: spec, generatedAt: T3 },
+        tickets: { items: shelfTickets, checked: shelfTickets, source: spec, generatedAt: T3 },
       });
       expect(ticketsStale(project(state))).toBe(false);
+      expect(createBlockers(project(state))).toEqual([]);
       expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
     });
 
@@ -292,11 +294,54 @@ describe("workspaceReducer", () => {
     it("goes from the approved spec to existing tickets, and back to review", () => {
       const withTickets = workspaceReducer(approved(), generated);
       const reopened = workspaceReducer(withTickets, { type: "reopen", now: T3 });
-      expect(project(reopened)).toMatchObject({ stage: "review", tickets: { items: shelfTickets } });
+      expect(project(reopened)).toMatchObject({
+        stage: "review",
+        tickets: { items: shelfTickets },
+      });
 
       const reapproved = workspaceReducer(reopened, { type: "approve", now: T3 });
       const viewing = workspaceReducer(reapproved, { type: "viewTickets", now: T3 });
       expect(project(viewing).stage).toBe("tickets");
+    });
+
+    it("stores edited tickets and keeps the checked list", () => {
+      const edited = [...shelfTickets, ticket("T5", ["T9"])];
+      const state = runFrom(workspaceReducer(approved(), generated), {
+        type: "editTickets",
+        now: T3,
+        tickets: edited,
+      });
+
+      expect(project(state).tickets).toMatchObject({ items: edited, checked: shelfTickets });
+      expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
+      expect(createBlockers(project(state))).toEqual([
+        "Fix 1 dependency problem.",
+        "Check the impact of 1 edited ticket on the rest.",
+      ]);
+    });
+
+    it("ignores ticket edits outside the ticket list", () => {
+      const reopened = runFrom(workspaceReducer(approved(), generated), {
+        type: "reopen",
+        now: T3,
+      });
+      const edit: WorkspaceAction = { type: "editTickets", now: T3, tickets: [] };
+      expect(workspaceReducer(reopened, edit)).toBe(reopened);
+    });
+
+    it("blocks creation on an empty list and on stale tickets", () => {
+      const withTickets = workspaceReducer(approved(), generated);
+      const emptied = workspaceReducer(withTickets, { type: "editTickets", now: T3, tickets: [] });
+      expect(createBlockers(project(emptied))).toEqual([
+        "Add at least one ticket.",
+        "Check the impact of 4 edited tickets on the rest.",
+      ]);
+
+      const stale = { ...project(withTickets), approved: SpecSchema.parse(renamed) };
+      expect(createBlockers(stale)).toEqual([
+        "The spec changed after these tickets were generated. Regenerate them.",
+      ]);
+      expect(createBlockers(project(approved()))).toEqual(["There are no tickets yet."]);
     });
 
     it("ignores viewTickets when there are none", () => {

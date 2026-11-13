@@ -120,17 +120,19 @@ Done when:
 
 Carried to Phase 12: ticket descriptions show the model's Markdown raw in the app (e.g. `**User**`), like the chat. GitHub will render it in issue bodies, so render it in the ticket list too.
 
-## [ ] Phase 8: Ticket review and edit
+## [x] Phase 8: Ticket review and edit (`57b09f3`, `e0781ca`)
+
+Split into 8a (lib + state) and 8b (UI) on one branch (Rule 3). Phases 8 and 9 stay separate: the owner agreed that together they'd be about twice the review limit.
 
 Done when:
 
-- [ ] Ticket list in topological order: view, add, edit (all fields, dependency picker) and delete
-- [ ] DAG validation runs after every edit; errors appear inline on the affected tickets
-- [ ] Edited tickets are tracked as "unchecked"; Create is blocked while the DAG is invalid or edits are unchecked (impact check arrives in Phase 9)
-- [ ] Component + reducer tests for edit flows and validation display
-- [ ] Committed
+- [x] Ticket list in topological order: view, add, edit (all fields, dependency picker) and delete
+- [x] DAG validation runs after every edit; errors appear inline on the affected tickets
+- [x] Edited tickets are tracked as "unchecked"; Create is blocked while the DAG is invalid or edits are unchecked (impact check arrives in Phase 9). Stale tickets and an empty list block it too. The Create button stays disabled until Phase 10
+- [x] Component + reducer tests for edit flows and validation display
+- [x] Committed
 
-> If Phases 8 and 9 together look small after Phase 7, they may merge. Propose it at the start of Phase 8.
+Carried to Phase 10: enable the Create repo button in `CreateGate` once `createBlockers` is empty.
 
 ## [ ] Phase 9: Edit-impact proposals
 

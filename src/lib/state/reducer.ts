@@ -2,6 +2,8 @@ import type { TurnError } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { isSpecComplete } from "@/lib/spec/complete";
 import type { Spec, SpecDraft } from "@/lib/spec/schema";
+import { validateDag } from "@/lib/tickets/dag";
+import { uncheckedTicketIds } from "@/lib/tickets/edit";
 import type { Ticket } from "@/lib/tickets/schema";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 
@@ -41,6 +43,8 @@ export type WorkspaceAction =
   // Tickets generated from `source`, the approved spec the request was sent with.
   | { type: "ticketsGenerated"; now: string; tickets: Ticket[]; source: Spec }
   | { type: "viewTickets"; now: string }
+  // A list already validated by `saveTicket` or `deleteTicket`. The DAG may be invalid.
+  | { type: "editTickets"; now: string; tickets: Ticket[] }
   | { type: "reset" };
 
 const idleTransient = (): Transient => ({
@@ -161,8 +165,38 @@ function ticketsGenerated(
   if (project?.stage !== "approved" && project?.stage !== "tickets") return state;
   return updateProject(state, now, () => ({
     stage: "tickets",
-    tickets: { items: tickets, source, generatedAt: now },
+    tickets: { items: tickets, checked: tickets, source, generatedAt: now },
   }));
+}
+
+function editTickets(state: WorkspaceState, now: string, tickets: Ticket[]): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (project?.stage !== "tickets" || !project.tickets) return state;
+  const set = project.tickets;
+  return updateProject(state, now, () => ({ tickets: { ...set, items: tickets } }));
+}
+
+const plural = (count: number, one: string, many: string): string =>
+  `${String(count)} ${count === 1 ? one : many}`;
+
+/** Why the repo can't be created yet, as readable reasons. Empty means nothing blocks it. */
+export function createBlockers(project: Project): string[] {
+  if (!project.tickets) return ["There are no tickets yet."];
+  const { items, checked } = project.tickets;
+  const dag = validateDag(items);
+  const unchecked = uncheckedTicketIds(checked, items).length;
+  return [
+    ...(items.length === 0 ? ["Add at least one ticket."] : []),
+    ...(dag.ok
+      ? []
+      : [`Fix ${plural(dag.error.length, "dependency problem", "dependency problems")}.`]),
+    ...(unchecked > 0
+      ? [`Check the impact of ${plural(unchecked, "edited ticket", "edited tickets")} on the rest.`]
+      : []),
+    ...(ticketsStale(project)
+      ? ["The spec changed after these tickets were generated. Regenerate them."]
+      : []),
+  ];
 }
 
 /** Pure state transitions for the workspace. Ids and timestamps come in on the action. */
@@ -211,6 +245,8 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       if (project?.stage !== "approved" || !project.tickets) return state;
       return updateProject(state, action.now, () => ({ stage: "tickets" }));
     }
+    case "editTickets":
+      return editTickets(state, action.now, action.tickets);
     case "reset":
       return initialWorkspace(emptyState());
   }
