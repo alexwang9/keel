@@ -6,7 +6,7 @@ Flow being built: sign in with GitHub → chat interview → spec review/edit �
 
 ---
 
-## [x] Phase 0: Scaffold and tooling
+## [x] Phase 0: Scaffold and tooling (`df00f00`)
 
 Set up the project skeleton so every later phase only adds features.
 

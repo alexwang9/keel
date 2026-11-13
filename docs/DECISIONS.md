@@ -103,4 +103,3 @@ Format: **decision**: rationale. `[given]` = set by the project owner. `[confirm
 - **[Phase 0] MSW 3 runs with `onUnhandledFrame: "error"`**: MSW 3 renamed `onUnhandledRequest`, and the old option is silently ignored, so unmatched requests would reach real APIs. A harness test checks that unmatched requests are blocked.
 - **[Phase 0] Env is validated in `instrumentation.ts` `register()`**: the server refuses to start with a list of bad variable names, never their values. `ALLOWED_GITHUB_LOGINS` is comma-separated, trimmed, lowercased and checked against GitHub's login rules. `KEEL_FAKE_EXTERNALS` accepts only `"0"` or `"1"`.
 - **[Phase 0] `AGENTS.md` (written by Next.js) is committed**: `next dev` recreates it if it's missing, so committing it keeps the tree clean. Empty layout folders hold a `.gitkeep`, not placeholder modules.
-
