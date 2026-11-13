@@ -17,7 +17,7 @@ Done when:
 - [x] Vitest + Testing Library + MSW wired up, with one sample component test and one sample MSW-backed test
 - [x] `src/lib/env.ts` validates env with Zod; `.env.example` lists every variable; `.gitignore` excludes `.env*` except the example
 - [x] Directory layout from CLAUDE.md created (empty modules where needed)
-- [x] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, arctic, iron-session checked and pinned (exception: `arctic` is deprecated on npm and was not installed; must be resolved before Phase 3, see DECISIONS.md)
+- [x] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, iron-session checked and pinned (`arctic` turned out to be deprecated on npm and was replaced by `@octokit/oauth-methods`, see DECISIONS.md)
 - [x] Committed
 
 ## [ ] Phase 1: Spec domain core (pure, no UI)
@@ -46,7 +46,7 @@ Done when:
 
 Done when:
 
-- [ ] OAuth App flow with `arctic`: `/api/auth/login` (state + PKCE where supported), `/api/auth/callback`, `/api/auth/logout`
+- [ ] OAuth App flow with `@octokit/oauth-methods`: `/api/auth/login` (crypto-random state; PKCE if GitHub supports it for OAuth Apps), `/api/auth/callback`, `/api/auth/logout`
 - [ ] Scope requested is exactly what DECISIONS.md says (`public_repo` unless changed)
 - [ ] Session in an `iron-session` cookie (httpOnly, secure, sameSite=lax) holding token + login; `getSession()` is `server-only`
 - [ ] Allowlist enforced (`ALLOWED_GITHUB_LOGINS`); non-allowlisted users see a friendly page and get no session
