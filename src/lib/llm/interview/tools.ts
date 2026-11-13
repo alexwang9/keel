@@ -1,11 +1,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
 import { z } from "zod";
+import { FINISH_INTERVIEW, UPDATE_SPEC } from "@/lib/llm/interview/tool-names";
 import { SpecPatchSchema } from "@/lib/spec/schema";
 
-export const UPDATE_SPEC = "update_spec";
-export const FINISH_INTERVIEW = "finish_interview";
-export const INTERVIEW_TOOL_NAMES = [UPDATE_SPEC, FINISH_INTERVIEW] as const;
+export { FINISH_INTERVIEW, INTERVIEW_TOOL_NAMES, UPDATE_SPEC } from "@/lib/llm/interview/tool-names";
 
 export const UpdateSpecInputSchema = z.object({ ops: SpecPatchSchema });
 export const FinishInterviewInputSchema = z.object({});
