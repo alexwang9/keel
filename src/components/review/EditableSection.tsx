@@ -5,9 +5,10 @@ import { buttonClass, primaryButtonClass } from "@/components/review/inputs";
 import type { Result } from "@/lib/result";
 import type { SpecOp } from "@/lib/spec/schema";
 
-export type SaveEdit = (ops: SpecOp[]) => Result<void, string[]>;
+// Spec sections save patch ops; other editors pass their own change type.
+export type SaveEdit<Op = SpecOp> = (ops: Op[]) => Result<void, string[]>;
 
-interface EditableSectionProps<T> {
+interface EditableSectionProps<T, Op = SpecOp> {
   title: string;
   // The read-only view, shown while not editing.
   children: ReactNode;
@@ -16,8 +17,8 @@ interface EditableSectionProps<T> {
   // Readable problems with the form value; Save is disabled while there are any.
   validate: (value: T) => string[];
   // The patch for a valid value. Empty means nothing changed.
-  toOps: (value: T) => SpecOp[];
-  onSave: SaveEdit;
+  toOps: (value: T) => Op[];
+  onSave: SaveEdit<Op>;
   renderForm: (value: T, onChange: (value: T) => void) => ReactNode;
   // List items sit inside a section, so they use h3 and drop the outer card.
   nested?: boolean;
@@ -26,6 +27,8 @@ interface EditableSectionProps<T> {
   // Opens the form on mount, for a new item. `onClose` runs on Save and on Cancel.
   startOpen?: boolean;
   onClose?: () => void;
+  // Hides Edit, e.g. while the content is being replaced.
+  locked?: boolean;
 }
 
 interface Editing<T> {
@@ -38,7 +41,7 @@ interface Editing<T> {
  * One spec section: a read view with an Edit button, and a form that validates as you type and
  * saves its patch through `onSave`. A rejected patch keeps the form open with the errors.
  */
-export function EditableSection<T>(props: EditableSectionProps<T>) {
+export function EditableSection<T, Op = SpecOp>(props: EditableSectionProps<T, Op>) {
   const { title, children, initial, validate, toOps, onSave, renderForm, nested = false } = props;
   const [editing, setEditing] = useState<Editing<T> | null>(() =>
     props.startOpen ? { value: initial(), touched: false, saveErrors: [] } : null,
@@ -78,7 +81,7 @@ export function EditableSection<T>(props: EditableSectionProps<T>) {
         <Heading id={headingId} className={nested ? "font-medium" : "font-semibold"}>
           {title}
         </Heading>
-        {!editing && (
+        {!editing && !props.locked && (
           <div className="flex gap-1">
             {props.actions}
             <button

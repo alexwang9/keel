@@ -294,7 +294,10 @@ describe("workspaceReducer", () => {
     it("goes from the approved spec to existing tickets, and back to review", () => {
       const withTickets = workspaceReducer(approved(), generated);
       const reopened = workspaceReducer(withTickets, { type: "reopen", now: T3 });
-      expect(project(reopened)).toMatchObject({ stage: "review", tickets: { items: shelfTickets } });
+      expect(project(reopened)).toMatchObject({
+        stage: "review",
+        tickets: { items: shelfTickets },
+      });
 
       const reapproved = workspaceReducer(reopened, { type: "approve", now: T3 });
       const viewing = workspaceReducer(reapproved, { type: "viewTickets", now: T3 });

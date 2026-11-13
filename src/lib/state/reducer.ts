@@ -191,9 +191,7 @@ export function createBlockers(project: Project): string[] {
       ? []
       : [`Fix ${plural(dag.error.length, "dependency problem", "dependency problems")}.`]),
     ...(unchecked > 0
-      ? [
-          `Check the impact of ${plural(unchecked, "edited ticket", "edited tickets")} on the rest.`,
-        ]
+      ? [`Check the impact of ${plural(unchecked, "edited ticket", "edited tickets")} on the rest.`]
       : []),
     ...(ticketsStale(project)
       ? ["The spec changed after these tickets were generated. Regenerate them."]

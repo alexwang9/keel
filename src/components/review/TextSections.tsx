@@ -11,6 +11,7 @@ import {
   ProjectTypeSchema,
   SpecDraftSchema,
   type ProjectType,
+  type SpecOp,
 } from "@/lib/spec/schema";
 
 export type TextField = "name" | "problem" | "goal" | "targetUsers" | "deploymentTarget";
@@ -34,7 +35,9 @@ export function TextSection({ field, title, value, onSave }: TextSectionProps) {
       title={title}
       initial={() => value ?? ""}
       validate={(text) => issuesFor(schema, text, title)}
-      toOps={(text) => (text.trim() === value ? [] : [{ op: "set", field, value: text.trim() }])}
+      toOps={(text): SpecOp[] =>
+        text.trim() === value ? [] : [{ op: "set", field, value: text.trim() }]
+      }
       onSave={onSave}
       renderForm={(text, onChange) => (
         <TextInput
@@ -72,7 +75,7 @@ export function TextListSection({ field, title, itemLabel, value, onSave }: Text
       title={title}
       initial={() => current}
       validate={(items) => issuesFor(schema, items, itemLabel)}
-      toOps={(items) => {
+      toOps={(items): SpecOp[] => {
         const trimmed = items.map((item) => item.trim());
         return sameValue(trimmed, current) ? [] : [{ op: "set", field, value: trimmed }];
       }}
@@ -113,7 +116,7 @@ export function ProjectTypeSection({ value, onSave }: ProjectTypeSectionProps) {
       title="Project type"
       initial={() => value ?? EMPTY_TYPE}
       validate={(type) => issuesFor(ProjectTypeSchema, type, "Project type")}
-      toOps={(type) => {
+      toOps={(type): SpecOp[] => {
         const next = { kind: type.kind, detail: type.detail.trim() };
         return sameValue(next, value) ? [] : [{ op: "set", field: "projectType", value: next }];
       }}

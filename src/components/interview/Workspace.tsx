@@ -8,7 +8,7 @@ import { useWorkspace, type Workspace as WorkspaceApi } from "@/components/inter
 import { ApprovedSpec, type TicketStatus } from "@/components/review/ApprovedSpec";
 import { SpecReview } from "@/components/review/SpecReview";
 import { TicketsScreen } from "@/components/tickets/TicketsScreen";
-import { awaitingReply, ticketsStale } from "@/lib/state/reducer";
+import { awaitingReply, createBlockers, ticketsStale } from "@/lib/state/reducer";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 import {
   browserStorage,
@@ -71,10 +71,14 @@ function Stage({ workspace }: { workspace: WorkspaceApi }) {
     return (
       <TicketsScreen
         tickets={project.tickets.items}
+        checked={project.tickets.checked}
         approved={project.approved}
         stale={ticketsStale(project)}
+        blockers={createBlockers(project)}
         onGenerated={workspace.ticketsGenerated}
         onEditSpec={workspace.reopen}
+        onSaveTicket={workspace.saveTicket}
+        onDeleteTicket={workspace.deleteTicket}
       />
     );
   }
