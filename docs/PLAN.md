@@ -86,19 +86,22 @@ Carried from Phase 4 and done: the billing failure now has its own `billing` cop
 
 Carried to Phase 12: the UI works but looks rough. Give every screen a visual design pass alongside the empty, loading and error state review.
 
-## [~] Phase 6: Spec review, edit and approve
+## [x] Phase 6: Spec review, edit and approve (`4eb35cd`, 6b commit)
 
-Split into 6a and 6b (Rule 3: the whole phase was estimated at ~1,400 lines; 6a alone came to ~1,700 including tests).
+Split into 6a and 6b on one branch (Rule 3: ~1,700 and ~930 inserted lines, tests included; the owner chose a single PR).
 
 Done when:
 
-- [~] Structured form editor for every spec field (add, edit and remove features, acceptance checks, entities, relationships, integrations, etc.). 6a: name, problem, goal, target users, project type, deployment, out of scope, constraints. 6b: features, data model, integrations, auth
-- [x] Live validation; Approve is disabled until `isSpecComplete` passes (6a)
-- [x] Markdown preview using `renderSpecMarkdown` (6a)
-- [x] "Back to interview" sends an append-only message describing the edits (6a)
-- [x] Editing an approved spec reopens review and needs re-approval; the last approval is kept as `approved` (6a). The visible "tickets are stale" part moved to Phase 7, since no tickets exist yet
-- [~] Component tests for editing, validation and the approve gate (6a sections done; 6b adds its editors)
-- [ ] Committed (6a committed; 6b pending)
+- [x] Structured form editor for every spec field (add, edit and remove features, acceptance checks, entities, relationships, integrations, etc.)
+- [x] Live validation; Approve is disabled until `isSpecComplete` passes
+- [x] Markdown preview using `renderSpecMarkdown`
+- [x] "Back to interview" sends an append-only message describing the edits
+- [x] Editing an approved spec reopens review and needs re-approval; the last approval is kept as `approved`. The visible "tickets are stale" part moved to Phase 7, since no tickets exist yet
+- [x] Component tests for editing, validation and the approve gate
+- [x] Manual check: owner ran an interview through review, editing and approval against the live API (6a)
+- [x] Committed
+
+Carried to Phase 12: the chat shows the model's Markdown raw (e.g. `**Name:**`); render it, or tell the model to write plain text.
 
 ## [ ] Phase 7: Ticket generation
 

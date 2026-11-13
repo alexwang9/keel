@@ -19,6 +19,13 @@ interface EditableSectionProps<T> {
   toOps: (value: T) => SpecOp[];
   onSave: SaveEdit;
   renderForm: (value: T, onChange: (value: T) => void) => ReactNode;
+  // List items sit inside a section, so they use h3 and drop the outer card.
+  nested?: boolean;
+  // Extra header buttons shown next to Edit, e.g. Remove.
+  actions?: ReactNode;
+  // Opens the form on mount, for a new item. `onClose` runs on Save and on Cancel.
+  startOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface Editing<T> {
@@ -32,9 +39,17 @@ interface Editing<T> {
  * saves its patch through `onSave`. A rejected patch keeps the form open with the errors.
  */
 export function EditableSection<T>(props: EditableSectionProps<T>) {
-  const { title, children, initial, validate, toOps, onSave, renderForm } = props;
-  const [editing, setEditing] = useState<Editing<T> | null>(null);
+  const { title, children, initial, validate, toOps, onSave, renderForm, nested = false } = props;
+  const [editing, setEditing] = useState<Editing<T> | null>(() =>
+    props.startOpen ? { value: initial(), touched: false, saveErrors: [] } : null,
+  );
   const headingId = useId();
+  const Heading = nested ? "h3" : "h2";
+
+  const close = () => {
+    setEditing(null);
+    props.onClose?.();
+  };
 
   const problems = editing ? validate(editing.value) : [];
   const shown = editing?.touched
@@ -46,30 +61,37 @@ export function EditableSection<T>(props: EditableSectionProps<T>) {
     if (!editing || problems.length > 0) return;
     const ops = toOps(editing.value);
     const result = ops.length === 0 ? ({ ok: true, value: undefined } as const) : onSave(ops);
-    if (result.ok) setEditing(null);
+    if (result.ok) close();
     else setEditing({ ...editing, touched: true, saveErrors: result.error });
   };
 
   return (
     <section
       aria-labelledby={headingId}
-      className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+      className={
+        nested
+          ? "flex flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800"
+          : "flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+      }
     >
       <header className="flex items-baseline justify-between gap-2">
-        <h2 id={headingId} className="font-semibold">
+        <Heading id={headingId} className={nested ? "font-medium" : "font-semibold"}>
           {title}
-        </h2>
+        </Heading>
         {!editing && (
-          <button
-            type="button"
-            aria-label={`Edit ${title}`}
-            onClick={() => {
-              setEditing({ value: initial(), touched: false, saveErrors: [] });
-            }}
-            className={buttonClass}
-          >
-            Edit
-          </button>
+          <div className="flex gap-1">
+            {props.actions}
+            <button
+              type="button"
+              aria-label={`Edit ${title}`}
+              onClick={() => {
+                setEditing({ value: initial(), touched: false, saveErrors: [] });
+              }}
+              className={buttonClass}
+            >
+              Edit
+            </button>
+          </div>
         )}
       </header>
       {editing ? (
@@ -88,13 +110,7 @@ export function EditableSection<T>(props: EditableSectionProps<T>) {
             <button type="submit" disabled={problems.length > 0} className={primaryButtonClass}>
               Save
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(null);
-              }}
-              className={buttonClass}
-            >
+            <button type="button" onClick={close} className={buttonClass}>
               Cancel
             </button>
           </div>

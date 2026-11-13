@@ -1,34 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { SpecReview } from "@/components/review/SpecReview";
 import { err, ok } from "@/lib/result";
-import { applySpecPatch } from "@/lib/spec/patch";
-import { SpecSchema, type SpecDraft, type SpecOp } from "@/lib/spec/schema";
+import { SpecSchema, type SpecDraft } from "@/lib/spec/schema";
 import { completeDraft } from "@/test/fixtures/spec";
+import { ReviewHarness } from "@/test/spec-review";
 
 const spec = SpecSchema.parse(completeDraft);
 
-/** SpecReview with a real draft behind it, so saved edits show up like they do in the app. */
-function Harness({ initial = completeDraft as SpecDraft, onApprove = vi.fn() }) {
-  const [draft, setDraft] = useState(initial);
-  const onSave = (ops: SpecOp[]) => {
-    const result = applySpecPatch(draft, ops);
-    if (!result.ok) return result;
-    setDraft(result.value);
-    return ok(undefined);
-  };
-  return (
-    <SpecReview
-      draft={draft}
-      baseline={spec}
-      onSave={onSave}
-      onApprove={onApprove}
-      onBackToInterview={() => ok(undefined)}
-    />
-  );
-}
+const Harness = ReviewHarness;
 
 const section = (name: string) => within(screen.getByRole("region", { name }));
 const approveButton = () => screen.getByRole("button", { name: "Approve spec" });

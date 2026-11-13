@@ -1,101 +1,200 @@
-import type { ReactNode } from "react";
-import type { SpecDraft } from "@/lib/spec/schema";
+"use client";
 
-function ReadSection({ title, children }: { title: string; children: ReactNode }) {
+import type { ReactNode } from "react";
+import type { SaveEdit } from "@/components/review/EditableSection";
+import { TextInput, TextListInput } from "@/components/review/inputs";
+import { issuesFor } from "@/components/review/issues";
+import { ItemList } from "@/components/review/ItemList";
+import { NoneChoice } from "@/components/review/NoneChoice";
+import { nextId } from "@/lib/spec/ids";
+import {
+  FeatureSchema,
+  IntegrationSchema,
+  LIMITS,
+  type Feature,
+  type Integration,
+  type SpecDraft,
+} from "@/lib/spec/schema";
+
+/** A section card whose parts edit separately. */
+export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section
       aria-label={title}
-      className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
+      className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800"
     >
-      <h2 className="font-semibold">{title}</h2>
-      <div className="text-sm text-zinc-700 dark:text-zinc-300">{children}</div>
+      <h2 className="text-base font-semibold">{title}</h2>
+      {children}
     </section>
   );
 }
 
-const unanswered = <p className="text-zinc-500">Not answered yet.</p>;
-const none = (reason: string) => <p className="whitespace-pre-wrap">None: {reason}</p>;
+export const confirmRemove = (what: string): boolean => window.confirm(`Remove ${what}?`);
 
-export function FeaturesView({ features }: { features: SpecDraft["features"] }) {
+const FEATURE_LABELS = { acceptanceChecks: "acceptance check" };
+
+export function FeaturesSection({ features, onSave }: { features: Feature[]; onSave: SaveEdit }) {
+  const heading = (f: Feature) => `${f.id}. ${f.title}`;
   return (
-    <ReadSection title="Features">
-      {!features || features.length === 0 ? (
-        <p className="text-zinc-500">No features yet.</p>
-      ) : (
-        <ol className="flex flex-col gap-3">
-          {features.map((feature) => (
-            <li key={feature.id}>
-              <p className="font-medium">
-                {feature.id}. {feature.title}
-              </p>
-              <p className="whitespace-pre-wrap">{feature.description}</p>
-              {feature.acceptanceChecks.length === 0 ? (
-                <p className="text-amber-700 dark:text-amber-400">Needs acceptance checks.</p>
-              ) : (
-                <ul className="list-disc pl-5">
-                  {feature.acceptanceChecks.map((check, index) => (
-                    <li key={index}>{check}</li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ol>
+    <SectionCard title="Features">
+      <ItemList
+        noun="feature"
+        plural="features"
+        items={features}
+        blank={() => ({
+          id: nextId(features, "features"),
+          title: "",
+          description: "",
+          acceptanceChecks: [""],
+        })}
+        heading={heading}
+        validate={(f) => issuesFor(FeatureSchema, f, "feature", FEATURE_LABELS)}
+        upsert={(item) => ({ op: "upsert", list: "features", item })}
+        remove={(f) =>
+          confirmRemove(`feature ${heading(f)}`)
+            ? [{ op: "remove", list: "features", id: f.id }]
+            : null
+        }
+        onSave={onSave}
+        view={(f) => (
+          <>
+            <p className="whitespace-pre-wrap">{f.description}</p>
+            {f.acceptanceChecks.length === 0 ? (
+              <p className="text-amber-700 dark:text-amber-400">Needs acceptance checks.</p>
+            ) : (
+              <ul className="list-disc pl-5">
+                {f.acceptanceChecks.map((check, index) => (
+                  <li key={index}>{check}</li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+        form={(f, onChange) => (
+          <>
+            <TextInput
+              label="Title"
+              value={f.title}
+              maxLength={LIMITS.shortText}
+              onChange={(title) => {
+                onChange({ ...f, title });
+              }}
+            />
+            <TextInput
+              label="Description"
+              value={f.description}
+              multiline
+              maxLength={LIMITS.longText}
+              onChange={(description) => {
+                onChange({ ...f, description });
+              }}
+            />
+            <TextListInput
+              itemLabel="Acceptance check"
+              items={f.acceptanceChecks}
+              maxItems={LIMITS.acceptanceChecks}
+              maxLength={LIMITS.longText}
+              onChange={(acceptanceChecks) => {
+                onChange({ ...f, acceptanceChecks });
+              }}
+            />
+          </>
+        )}
+      />
+    </SectionCard>
+  );
+}
+
+type NeedValue = { none: true; reason: string } | { none: false } | undefined;
+
+/** The read view of a "needed?" choice; `needed` is shown when the section is needed. */
+export function needView(value: NeedValue, needed: ReactNode): ReactNode {
+  if (!value) return <p className="text-zinc-500">Not answered yet.</p>;
+  if (value.none) return <p className="whitespace-pre-wrap">Not needed: {value.reason}</p>;
+  return needed;
+}
+
+export function IntegrationsSection({
+  integrations,
+  onSave,
+}: {
+  integrations: SpecDraft["integrations"];
+  onSave: SaveEdit;
+}) {
+  const items = integrations && !integrations.none ? integrations.items : [];
+  const heading = (i: Integration) => i.name;
+  return (
+    <SectionCard title="Integrations">
+      <NoneChoice
+        field="integrations"
+        title="Integrations needed"
+        nested
+        value={integrations}
+        neededLabel="Yes, list them"
+        noneLabel="No external services"
+        itemCount={items.length}
+        onSave={onSave}
+      >
+        {needView(integrations, <p>Yes, listed below.</p>)}
+      </NoneChoice>
+      {integrations && !integrations.none && (
+        <ItemList
+          noun="integration"
+          plural="integrations"
+          items={items}
+          blank={() => ({ id: nextId(items, "integrations"), name: "", purpose: "" })}
+          heading={heading}
+          validate={(i) => issuesFor(IntegrationSchema, i, "integration")}
+          upsert={(item) => ({ op: "upsert", list: "integrations", item })}
+          remove={(i) =>
+            confirmRemove(`integration ${i.name}`)
+              ? [{ op: "remove", list: "integrations", id: i.id }]
+              : null
+          }
+          onSave={onSave}
+          view={(i) => <p className="whitespace-pre-wrap">{i.purpose}</p>}
+          form={(i, onChange) => (
+            <>
+              <TextInput
+                label="Name"
+                value={i.name}
+                maxLength={LIMITS.shortText}
+                onChange={(name) => {
+                  onChange({ ...i, name });
+                }}
+              />
+              <TextInput
+                label="Purpose"
+                value={i.purpose}
+                multiline
+                maxLength={LIMITS.longText}
+                onChange={(purpose) => {
+                  onChange({ ...i, purpose });
+                }}
+              />
+            </>
+          )}
+        />
       )}
-    </ReadSection>
+    </SectionCard>
   );
 }
 
-export function DataModelView({ dataModel }: { dataModel: SpecDraft["dataModel"] }) {
-  if (!dataModel) return <ReadSection title="Data model">{unanswered}</ReadSection>;
-  if (dataModel.none) return <ReadSection title="Data model">{none(dataModel.reason)}</ReadSection>;
-  const names = new Map(dataModel.entities.map((entity) => [entity.id, entity.name]));
+export function AuthSection({ auth, onSave }: { auth: SpecDraft["auth"]; onSave: SaveEdit }) {
   return (
-    <ReadSection title="Data model">
-      <ul className="list-disc pl-5">
-        {dataModel.entities.map((entity) => (
-          <li key={entity.id}>
-            <span className="font-medium">{entity.name}</span>: {entity.description}
-            {entity.fields.length > 0 && ` Fields: ${entity.fields.join(", ")}`}
-          </li>
-        ))}
-      </ul>
-      {dataModel.relationships.length > 0 && (
-        <ul className="mt-2 list-disc pl-5">
-          {dataModel.relationships.map((r) => (
-            <li key={r.id}>
-              {names.get(r.from) ?? r.from} → {names.get(r.to) ?? r.to} ({r.kind}): {r.description}
-            </li>
-          ))}
-        </ul>
+    <NoneChoice
+      field="auth"
+      title="Auth"
+      value={auth}
+      neededLabel="Users sign in"
+      noneLabel="No sign-in"
+      itemCount={0}
+      onSave={onSave}
+    >
+      {needView(
+        auth,
+        auth?.none === false && <p className="whitespace-pre-wrap">{auth.description}</p>,
       )}
-    </ReadSection>
-  );
-}
-
-export function IntegrationsView({ integrations }: { integrations: SpecDraft["integrations"] }) {
-  const title = "Integrations";
-  if (!integrations) return <ReadSection title={title}>{unanswered}</ReadSection>;
-  if (integrations.none)
-    return <ReadSection title={title}>{none(integrations.reason)}</ReadSection>;
-  return (
-    <ReadSection title={title}>
-      <ul className="list-disc pl-5">
-        {integrations.items.map((item) => (
-          <li key={item.id}>
-            <span className="font-medium">{item.name}</span>: {item.purpose}
-          </li>
-        ))}
-      </ul>
-    </ReadSection>
-  );
-}
-
-export function AuthView({ auth }: { auth: SpecDraft["auth"] }) {
-  if (!auth) return <ReadSection title="Auth">{unanswered}</ReadSection>;
-  return (
-    <ReadSection title="Auth">
-      {auth.none ? none(auth.reason) : <p className="whitespace-pre-wrap">{auth.description}</p>}
-    </ReadSection>
+    </NoneChoice>
   );
 }

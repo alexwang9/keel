@@ -1,11 +1,11 @@
 "use client";
 
 import type { SaveEdit } from "@/components/review/EditableSection";
+import { DataModelSection } from "@/components/review/DataModelSection";
 import {
-  AuthView,
-  DataModelView,
-  FeaturesView,
-  IntegrationsView,
+  AuthSection,
+  FeaturesSection,
+  IntegrationsSection,
 } from "@/components/review/StructuredSections";
 import { ProjectTypeSection, TextListSection, TextSection } from "@/components/review/TextSections";
 import type { SpecDraft } from "@/lib/spec/schema";
@@ -29,7 +29,7 @@ export function SpecForm({ draft, onSave }: SpecFormProps) {
         onSave={onSave}
       />
       <ProjectTypeSection value={draft.projectType} onSave={onSave} />
-      <FeaturesView features={draft.features} />
+      <FeaturesSection features={draft.features ?? []} onSave={onSave} />
       <TextListSection
         field="outOfScope"
         title="Out of scope"
@@ -37,9 +37,9 @@ export function SpecForm({ draft, onSave }: SpecFormProps) {
         value={draft.outOfScope}
         onSave={onSave}
       />
-      <DataModelView dataModel={draft.dataModel} />
-      <IntegrationsView integrations={draft.integrations} />
-      <AuthView auth={draft.auth} />
+      <DataModelSection dataModel={draft.dataModel} onSave={onSave} />
+      <IntegrationsSection integrations={draft.integrations} onSave={onSave} />
+      <AuthSection auth={draft.auth} onSave={onSave} />
       <TextSection
         field="deploymentTarget"
         title="Deployment"

@@ -24,3 +24,13 @@ export function issuesFor(
     return capitalize([root, ...path, issue.message].join(" "));
   });
 }
+
+/** Trims every string in a form value, so an unchanged form isn't saved as an edit. */
+export function trimDeep<T>(value: T): T {
+  if (typeof value === "string") return value.trim() as T;
+  if (Array.isArray(value)) return value.map(trimDeep) as T;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, trimDeep(v)])) as T;
+  }
+  return value;
+}
