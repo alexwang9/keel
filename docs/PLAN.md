@@ -6,19 +6,19 @@ Flow being built: sign in with GitHub → chat interview → spec review/edit �
 
 ---
 
-## [ ] Phase 0: Scaffold and tooling
+## [x] Phase 0: Scaffold and tooling
 
 Set up the project skeleton so every later phase only adds features.
 
 Done when:
 
-- [ ] Next.js App Router + TS strict + Tailwind app, created with pnpm, runs with `pnpm dev`, and shows a placeholder landing page
-- [ ] ESLint (flat config) + Prettier configured; `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm check` scripts exist and pass
-- [ ] Vitest + Testing Library + MSW wired up, with one sample component test and one sample MSW-backed test
-- [ ] `src/lib/env.ts` validates env with Zod; `.env.example` lists every variable; `.gitignore` excludes `.env*` except the example
-- [ ] Directory layout from CLAUDE.md created (empty modules where needed)
-- [ ] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, arctic, iron-session checked and pinned
-- [ ] Committed
+- [x] Next.js App Router + TS strict + Tailwind app, created with pnpm, runs with `pnpm dev`, and shows a placeholder landing page
+- [x] ESLint (flat config) + Prettier configured; `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm check` scripts exist and pass
+- [x] Vitest + Testing Library + MSW wired up, with one sample component test and one sample MSW-backed test
+- [x] `src/lib/env.ts` validates env with Zod; `.env.example` lists every variable; `.gitignore` excludes `.env*` except the example
+- [x] Directory layout from CLAUDE.md created (empty modules where needed)
+- [x] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, arctic, iron-session checked and pinned (exception: `arctic` is deprecated on npm and was not installed; must be resolved before Phase 3, see DECISIONS.md)
+- [x] Committed
 
 ## [ ] Phase 1: Spec domain core (pure, no UI)
 

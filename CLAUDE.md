@@ -7,7 +7,7 @@ Web app: a GitHub user describes software they want to build → an LLM intervie
 
 ## Stack
 
-Next.js (App Router) · TypeScript strict · Zod · `@anthropic-ai/sdk` · Octokit · `arctic` (GitHub OAuth) + `iron-session` (encrypted cookie) · Tailwind · `@xyflow/react` + `@dagrejs/dagre` · Vitest + Testing Library + MSW · Playwright (one smoke test) · pnpm · Node 24 LTS
+Next.js (App Router) · TypeScript strict · Zod · `@anthropic-ai/sdk` · Octokit · `arctic` (GitHub OAuth) + `iron-session` (encrypted cookie) · Tailwind · `@xyflow/react` + `@dagrejs/dagre` · Vitest + Testing Library + MSW · Playwright (one smoke test) · pnpm · Node 26 LTS
 
 No database. Pre-creation state lives in the browser (localStorage); after creation, GitHub is the source of truth.
 
