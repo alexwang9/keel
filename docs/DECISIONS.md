@@ -49,6 +49,14 @@ Format: **decision**: rationale. `[given]` = set by the project owner. `[confirm
 - **[confirmed] SPEC.md is rendered deterministically from the schema (pure function, snapshot-tested), not written by the LLM**: what the user approved is exactly what gets committed.
 - **[confirmed] Spec editing is a structured form per field, not a raw Markdown editor**: keeps the spec schema-valid at all times.
 - **[confirmed] Editing the spec after tickets exist marks the tickets stale and offers regeneration (no silent changes)**: keeps spec and tickets consistent without surprising the user.
+- **[Phase 1] Spec fields beyond the template: `name` (SPEC.md title, later the suggested repo name), and problem/goal split into `problem` and `goal`. `projectType` is an enum (`web-app`, `mobile-app`, `cli`, `library`, `api-service`, `desktop-app`, `other`) plus free-text `detail`**: an enum renders and prompts consistently, and `other` + detail covers the rest.
+- **[Phase 1] `dataModel` also takes an explicit `none` with a reason (extends the integrations/auth rule)**: stateless tools such as CLIs and libraries would otherwise need made-up entities to count as complete.
+- **[Phase 1] Ids are assigned by the caller with a fixed prefix per list (`F` features, `E` entities, `R` relationships, `I` integrations, `Q` open questions), using `nextId` (highest + 1)**: the LLM and the UI pick ids directly, with no round-trip, and ids stay readable in prompts. Wrong prefixes and duplicates are rejected by the schema.
+- **[Phase 1] Acceptance checks are plain strings, replaced as a whole when their feature is upserted**: per-check ids add nothing, since the form edits checks by position.
+- **[Phase 1] Patches are ordered `set` / `upsert` / `remove` ops applied all-or-nothing, and the result is re-validated as a whole**: one bad op leaves the draft unchanged, and cross-item rules (unique ids, relationships pointing at known entities) hold after every patch. Lists with ids change only through upsert and remove. Upserting into a `none` data model or integrations section turns it into a list.
+- **[Phase 1] `SpecSchema` (complete spec) enforces the completeness rules and is branded**: renderers and the creation route can only receive a spec that passed the check. `outOfScope` and `constraints` may be empty.
+- **[Phase 1] SPEC.md starts with `<!-- keel:spec v1 -->` and leaves out open questions**: Phase 10 uses the marker to recognise a Keel repo it can resume into, and the version allows format changes later. A complete spec has no open questions, so the section would always read "None".
+- **[Phase 1] The transcript is `{ role: "user" | "assistant", text }[]`, visible text only**: Phase 4 maps its full history (including tool blocks) to this shape before rendering `docs/interview.md`.
 
 ## Tickets
 
