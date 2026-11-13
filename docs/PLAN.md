@@ -69,18 +69,22 @@ Done when:
 
 Carried to Phase 5: a billing failure ("credit balance is too low") arrives as a 400 and currently shows the `bad_request` copy; review it with the other UI error copy.
 
-## [ ] Phase 5: Interview UI + client state
+## [x] Phase 5: Interview UI + client state (`a793070`, `3ba2b1d`, `b511185`, `cf7069b`)
 
 Done when:
 
-- [ ] Versioned client state store (`keel:project:v1`) with a reducer, Zod-validated on load; corrupt state shows an export-and-reset prompt
-- [ ] Chat screen: user describes the idea; streamed assistant replies; live spec panel showing filled and missing fields and open questions
-- [ ] A refresh mid-interview restores the conversation and draft
-- [ ] When the interview completes, the UI moves to spec review
-- [ ] Error states shown with retry
-- [ ] Component tests for the chat and spec panel; reducer tests
-- [ ] Manual check: one real interview run against the live API (note the result in the commit message)
-- [ ] Committed
+- [x] Versioned client state store (`keel:project:v1`) with a reducer, Zod-validated on load; corrupt state shows an export-and-reset prompt
+- [x] Chat screen: user describes the idea; streamed assistant replies; live spec panel showing filled and missing fields and open questions
+- [x] A refresh mid-interview restores the conversation and draft
+- [x] When the interview completes, the UI moves to spec review
+- [x] Error states shown with retry
+- [x] Component tests for the chat and spec panel; reducer tests
+- [x] Manual check: one real interview run against the live API (owner ran a full interview to the review screen, including a refresh mid-reply; everything worked)
+- [x] Committed
+
+Carried from Phase 4 and done: the billing failure now has its own `billing` copy.
+
+Carried to Phase 12: the UI works but looks rough. Give every screen a visual design pass alongside the empty, loading and error state review.
 
 ## [ ] Phase 6: Spec review, edit and approve
 
@@ -157,7 +161,7 @@ Done when:
 
 - [ ] `KEEL_FAKE_EXTERNALS=1` mode with in-process fakes, refused in production
 - [ ] Playwright smoke test covers sign in → interview → approve → tickets → create → graph
-- [ ] Empty, loading and error states reviewed on every screen
+- [ ] Empty, loading and error states reviewed on every screen, plus a visual design pass (carried from Phase 5)
 - [ ] README: what Keel is, screenshots, setup (OAuth App, env), architecture sketch
 - [ ] Deployed to Vercel with production env; one real end-to-end run
 - [ ] Committed
