@@ -61,3 +61,21 @@ describe("renderSpecMarkdown", () => {
     );
   });
 });
+
+describe("renderSpecMarkdown: sparse data model", () => {
+  it("omits the fields line for an entity without fields and shows no relationships as None", () => {
+    const markdown = renderSpecMarkdown(
+      spec({
+        dataModel: {
+          none: false,
+          entities: [{ id: "E1", name: "Note", description: "A note.", fields: [] }],
+          relationships: [],
+        },
+      }),
+    );
+
+    expect(markdown).toContain(
+      "### Entities\n\n- **Note**: A note.\n\n### Relationships\n\nNone.\n",
+    );
+  });
+});

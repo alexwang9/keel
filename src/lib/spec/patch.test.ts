@@ -195,3 +195,20 @@ describe("applySpecPatch: invalid patches", () => {
     expect(draft).toEqual(completeDraft);
   });
 });
+
+describe("applySpecPatch: remaining lists", () => {
+  it("upserts and edits open questions", () => {
+    const draft = applied({}, [
+      { op: "upsert", list: "openQuestions", item: { id: "Q1", question: "Offline?" } },
+      { op: "upsert", list: "openQuestions", item: { id: "Q1", question: "Offline support?" } },
+    ]);
+
+    expect(draft.openQuestions).toEqual([{ id: "Q1", question: "Offline support?" }]);
+  });
+
+  it("removes an integration, leaving an empty list rather than none", () => {
+    const draft = applied(completeDraft, [{ op: "remove", list: "integrations", id: "I1" }]);
+
+    expect(draft.integrations).toEqual({ none: false, items: [] });
+  });
+});

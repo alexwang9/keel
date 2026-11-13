@@ -14,3 +14,9 @@ describe("nextId", () => {
     expect(nextId([{ id: "Q9" }, { id: "Q10" }], "openQuestions")).toBe("Q11");
   });
 });
+
+describe("nextId with foreign ids", () => {
+  it("ignores ids that don't belong to the list", () => {
+    expect(nextId([{ id: "E5" }, { id: "Fx" }, { id: "F2" }], "features")).toBe("F3");
+  });
+});

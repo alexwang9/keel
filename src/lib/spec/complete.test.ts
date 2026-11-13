@@ -111,3 +111,12 @@ describe("isSpecComplete", () => {
     });
   });
 });
+
+describe("isSpecComplete on unvalidated input", () => {
+  it("reports structural errors instead of throwing", () => {
+    // A draft read without going through SpecDraftSchema, e.g. a hand-edited localStorage value.
+    const draft = { ...completeDraft, deploymentTarget: "   " };
+
+    expect(missingFor(draft)).toEqual(["deploymentTarget must not be empty"]);
+  });
+});
