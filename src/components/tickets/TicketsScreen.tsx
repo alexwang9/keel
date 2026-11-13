@@ -3,13 +3,15 @@
 import { buttonClass, primaryButtonClass } from "@/components/review/inputs";
 import { CreateGate } from "@/components/tickets/CreateGate";
 import { GenerationStatus } from "@/components/tickets/GenerationStatus";
+import { ImpactPanel } from "@/components/tickets/ImpactPanel";
 import { TicketList } from "@/components/tickets/TicketList";
+import { useImpactCheck } from "@/components/tickets/useImpactCheck";
 import { useTicketGeneration } from "@/components/tickets/useTicketGeneration";
 import type { Result } from "@/lib/result";
 import type { Spec } from "@/lib/spec/schema";
 import { validateDag } from "@/lib/tickets/dag";
 import { dagErrorsByTicket, newTicketId, uncheckedTicketIds } from "@/lib/tickets/edit";
-import type { Ticket } from "@/lib/tickets/schema";
+import type { ProposalOp, Ticket } from "@/lib/tickets/schema";
 
 export const REGENERATE_CONFIRM =
   "Regenerate tickets? This replaces the current tickets with a new set.";
@@ -60,16 +62,22 @@ interface TicketsScreenProps {
   onEditSpec: () => void;
   onSaveTicket: (ticket: Ticket) => Result<void, string[]>;
   onDeleteTicket: (id: string) => Result<void, string[]>;
+  // Accepted impact ops for `basis`, the list the check ran on.
+  onApplyImpact: (basis: Ticket[], ops: ProposalOp[]) => void;
 }
 
 /**
  * The ticket list: edit, add and delete tickets, with dependency problems on the tickets involved,
- * a stale warning when the spec has changed, and what's blocking repo creation.
+ * a stale warning when the spec has changed, the impact check for edits, and what's blocking repo
+ * creation. Editing is locked while tickets regenerate or an impact check runs or is reviewed.
  */
 export function TicketsScreen(props: TicketsScreenProps) {
   const { tickets, checked, approved, stale } = props;
   const generation = useTicketGeneration(props.onGenerated);
+  const impact = useImpactCheck();
   const running = generation.state.status === "running";
+  const checking = impact.state.status === "running";
+  const reviewing = impact.state.status === "reviewing";
   const edited = new Set(uncheckedTicketIds(checked, tickets));
   const dag = validateDag(tickets);
   const regenerate = () => {
@@ -81,7 +89,12 @@ export function TicketsScreen(props: TicketsScreenProps) {
     <section aria-label="Tickets" className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
       <div className="flex items-baseline justify-between gap-4">
         <h1 className="text-xl font-semibold">Tickets ({tickets.length})</h1>
-        <button type="button" onClick={props.onEditSpec} disabled={running} className={buttonClass}>
+        <button
+          type="button"
+          onClick={props.onEditSpec}
+          disabled={running || checking}
+          className={buttonClass}
+        >
           Edit spec
         </button>
       </div>
@@ -92,6 +105,20 @@ export function TicketsScreen(props: TicketsScreenProps) {
           generation.start(approved);
         }}
       />
+      {!stale && !running && (edited.size > 0 || impact.state.status !== "idle") && (
+        <ImpactPanel
+          state={impact.state}
+          edited={edited.size}
+          onCheck={() => {
+            impact.start({ spec: approved, checked, tickets });
+          }}
+          onApply={(basis, ops) => {
+            props.onApplyImpact(basis, ops);
+            impact.close();
+          }}
+          onClose={impact.close}
+        />
+      )}
       <CreateGate blockers={props.blockers} />
       <TicketList
         tickets={tickets}
@@ -100,7 +127,7 @@ export function TicketsScreen(props: TicketsScreenProps) {
         blank={() => blankTicket(newTicketId(tickets, checked))}
         onSave={props.onSaveTicket}
         onDelete={props.onDeleteTicket}
-        locked={running}
+        locked={running || checking || reviewing}
       />
     </section>
   );

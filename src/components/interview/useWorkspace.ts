@@ -17,7 +17,7 @@ import {
 import type { PersistedState, Project } from "@/lib/state/schema";
 import { saveState, type SaveProblem } from "@/lib/state/storage";
 import { deleteTicket, saveTicket } from "@/lib/tickets/edit";
-import type { Ticket } from "@/lib/tickets/schema";
+import type { ProposalOp, Ticket } from "@/lib/tickets/schema";
 
 export interface Workspace {
   state: WorkspaceState;
@@ -36,6 +36,8 @@ export interface Workspace {
   // Ticket list edits; errors leave the list unchanged. Dependency problems aren't errors.
   saveTicket: (ticket: Ticket) => Result<void, string[]>;
   deleteTicket: (id: string) => Result<void, string[]>;
+  // Accepted impact ops; refused unless they apply cleanly to `basis`, the current list.
+  applyImpact: (basis: Ticket[], ops: ProposalOp[]) => void;
 }
 
 const now = (): string => new Date().toISOString();
@@ -187,6 +189,12 @@ export function useWorkspace(
     [editTickets],
   );
 
+  const applyImpact = useCallback(
+    (basis: Ticket[], ops: ProposalOp[]) =>
+      apply({ type: "impactApplied", now: now(), basis, ops }),
+    [apply],
+  );
+
   return {
     state,
     project: currentProject(state.persisted),
@@ -202,5 +210,6 @@ export function useWorkspace(
     viewTickets,
     saveTicket: saveTicketEdit,
     deleteTicket: deleteTicketEdit,
+    applyImpact,
   };
 }

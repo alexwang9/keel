@@ -2,9 +2,10 @@ import type { TurnError } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { isSpecComplete } from "@/lib/spec/complete";
 import type { Spec, SpecDraft } from "@/lib/spec/schema";
-import { validateDag } from "@/lib/tickets/dag";
+import { topoSort, validateDag } from "@/lib/tickets/dag";
 import { uncheckedTicketIds } from "@/lib/tickets/edit";
-import type { Ticket } from "@/lib/tickets/schema";
+import { applyProposalOps } from "@/lib/tickets/proposal";
+import type { ProposalOp, Ticket } from "@/lib/tickets/schema";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 
 export type TurnStatus = "idle" | "streaming" | "error";
@@ -45,6 +46,8 @@ export type WorkspaceAction =
   | { type: "viewTickets"; now: string }
   // A list already validated by `saveTicket` or `deleteTicket`. The DAG may be invalid.
   | { type: "editTickets"; now: string; tickets: Ticket[] }
+  // The impact ops the user accepted, for `basis`: the list the check ran on. Clears "unchecked".
+  | { type: "impactApplied"; now: string; basis: Ticket[]; ops: ProposalOp[] }
   | { type: "reset" };
 
 const idleTransient = (): Transient => ({
@@ -176,6 +179,31 @@ function editTickets(state: WorkspaceState, now: string, tickets: Ticket[]): Wor
   return updateProject(state, now, () => ({ tickets: { ...set, items: tickets } }));
 }
 
+/**
+ * Applies accepted impact ops and marks the result checked. Gated here too, not just by the
+ * review UI: refused if the tickets changed since the check ran, or if the result isn't a valid
+ * list and DAG.
+ */
+function impactApplied(
+  state: WorkspaceState,
+  now: string,
+  basis: Ticket[],
+  ops: ProposalOp[],
+): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (project?.stage !== "tickets" || !project.tickets) return state;
+  const set = project.tickets;
+  // Both lists went through the same schema parse, so JSON compares them.
+  if (JSON.stringify(set.items) !== JSON.stringify(basis)) return state;
+  const applied = applyProposalOps(set.items, ops);
+  if (!applied.ok) return state;
+  const sorted = topoSort(applied.value);
+  if (!sorted.ok) return state;
+  return updateProject(state, now, () => ({
+    tickets: { ...set, items: sorted.value, checked: sorted.value },
+  }));
+}
+
 const plural = (count: number, one: string, many: string): string =>
   `${String(count)} ${count === 1 ? one : many}`;
 
@@ -247,6 +275,8 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     }
     case "editTickets":
       return editTickets(state, action.now, action.tickets);
+    case "impactApplied":
+      return impactApplied(state, action.now, action.basis, action.ops);
     case "reset":
       return initialWorkspace(emptyState());
   }
