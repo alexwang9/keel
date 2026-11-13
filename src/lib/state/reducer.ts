@@ -2,6 +2,7 @@ import type { TurnError } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { isSpecComplete } from "@/lib/spec/complete";
 import type { Spec, SpecDraft } from "@/lib/spec/schema";
+import type { Ticket } from "@/lib/tickets/schema";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 
 export type TurnStatus = "idle" | "streaming" | "error";
@@ -37,6 +38,9 @@ export type WorkspaceAction =
   | { type: "reopen"; now: string }
   // Appends the user's note and edit summary, and resumes the interview.
   | { type: "backToInterview"; now: string; text: string }
+  // Tickets generated from `source`, the approved spec the request was sent with.
+  | { type: "ticketsGenerated"; now: string; tickets: Ticket[]; source: Spec }
+  | { type: "viewTickets"; now: string }
   | { type: "reset" };
 
 const idleTransient = (): Transient => ({
@@ -92,6 +96,7 @@ function start(state: WorkspaceState, id: string, now: string, text: string): Wo
     draft: {},
     spec: null,
     approved: null,
+    tickets: null,
   };
   // V0 keeps one project: starting a new one replaces whatever was stored.
   return {
@@ -137,6 +142,29 @@ function backToInterview(state: WorkspaceState, now: string, text: string): Work
   return withTransient(next, streaming);
 }
 
+/**
+ * True when the tickets came from a spec other than the one approved last. Both specs went
+ * through the same schema parse, so their keys are in the same order and JSON compares them.
+ */
+export function ticketsStale(project: Project): boolean {
+  if (!project.tickets || !project.approved) return false;
+  return JSON.stringify(project.tickets.source) !== JSON.stringify(project.approved);
+}
+
+function ticketsGenerated(
+  state: WorkspaceState,
+  now: string,
+  tickets: Ticket[],
+  source: Spec,
+): WorkspaceState {
+  const project = currentProject(state.persisted);
+  if (project?.stage !== "approved" && project?.stage !== "tickets") return state;
+  return updateProject(state, now, () => ({
+    stage: "tickets",
+    tickets: { items: tickets, source, generatedAt: now },
+  }));
+}
+
 /** Pure state transitions for the workspace. Ids and timestamps come in on the action. */
 export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
@@ -170,11 +198,19 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     case "approve":
       return approve(state, action.now);
     case "reopen": {
-      if (currentProject(state.persisted)?.stage !== "approved") return state;
+      const stage = currentProject(state.persisted)?.stage;
+      if (stage !== "approved" && stage !== "tickets") return state;
       return updateProject(state, action.now, () => ({ stage: "review" }));
     }
     case "backToInterview":
       return backToInterview(state, action.now, action.text);
+    case "ticketsGenerated":
+      return ticketsGenerated(state, action.now, action.tickets, action.source);
+    case "viewTickets": {
+      const project = currentProject(state.persisted);
+      if (project?.stage !== "approved" || !project.tickets) return state;
+      return updateProject(state, action.now, () => ({ stage: "tickets" }));
+    }
     case "reset":
       return initialWorkspace(emptyState());
   }

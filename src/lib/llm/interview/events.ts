@@ -1,19 +1,9 @@
 import { z } from "zod";
+import { LLM_ERROR_CODES } from "@/lib/llm/error-codes";
 import { HistoryMessageSchema } from "@/lib/llm/interview/history";
 import { SpecDraftSchema, SpecOpSchema, SpecSchema } from "@/lib/spec/schema";
 
-export const INTERVIEW_ERROR_CODES = [
-  "rate_limited",
-  "overloaded",
-  "connection",
-  "bad_request",
-  "server_config",
-  "billing",
-  "refusal",
-  "max_tokens",
-  "loop_limit",
-  "unknown",
-] as const;
+export const INTERVIEW_ERROR_CODES = [...LLM_ERROR_CODES, "loop_limit"] as const;
 
 export const InterviewErrorSchema = z.object({
   code: z.enum(INTERVIEW_ERROR_CODES),

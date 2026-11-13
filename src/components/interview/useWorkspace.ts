@@ -6,7 +6,7 @@ import { HISTORY_LIMITS } from "@/lib/llm/interview/history";
 import { err, ok, type Result } from "@/lib/result";
 import { describeSpecEdits, editMessage } from "@/lib/spec/edits";
 import { applySpecPatch } from "@/lib/spec/patch";
-import type { SpecOp } from "@/lib/spec/schema";
+import type { Spec, SpecOp } from "@/lib/spec/schema";
 import {
   currentProject,
   initialWorkspace,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/state/reducer";
 import type { PersistedState, Project } from "@/lib/state/schema";
 import { saveState, type SaveProblem } from "@/lib/state/storage";
+import type { Ticket } from "@/lib/tickets/schema";
 
 export interface Workspace {
   state: WorkspaceState;
@@ -29,6 +30,8 @@ export interface Workspace {
   approve: () => void;
   reopen: () => void;
   backToInterview: (note: string) => Result<void, string>;
+  ticketsGenerated: (tickets: Ticket[], source: Spec) => void;
+  viewTickets: () => void;
 }
 
 const now = (): string => new Date().toISOString();
@@ -153,6 +156,13 @@ export function useWorkspace(
     [apply, runTurn],
   );
 
+  const ticketsGenerated = useCallback(
+    (tickets: Ticket[], source: Spec) =>
+      apply({ type: "ticketsGenerated", now: now(), tickets, source }),
+    [apply],
+  );
+  const viewTickets = useCallback(() => apply({ type: "viewTickets", now: now() }), [apply]);
+
   return {
     state,
     project: currentProject(state.persisted),
@@ -164,5 +174,7 @@ export function useWorkspace(
     approve,
     reopen,
     backToInterview,
+    ticketsGenerated,
+    viewTickets,
   };
 }

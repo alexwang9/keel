@@ -5,12 +5,14 @@ import {
   awaitingReply,
   currentProject,
   initialWorkspace,
+  ticketsStale,
   workspaceReducer,
   type WorkspaceAction,
   type WorkspaceState,
 } from "@/lib/state/reducer";
 import { emptyState, PersistedStateSchema, type Project } from "@/lib/state/schema";
 import { completeDraft } from "@/test/fixtures/spec";
+import { shelfTickets } from "@/test/fixtures/tickets";
 
 const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
 const T0 = "2026-11-12T10:00:00.000Z";
@@ -24,6 +26,8 @@ const rateLimited = { code: "rate_limited", message: "Slow down.", retryable: tr
 
 const run = (...actions: WorkspaceAction[]): WorkspaceState =>
   actions.reduce(workspaceReducer, initialWorkspace(emptyState()));
+const runFrom = (from: WorkspaceState, ...actions: WorkspaceAction[]): WorkspaceState =>
+  actions.reduce(workspaceReducer, from);
 
 const project = (state: WorkspaceState): Project => {
   const current = currentProject(state.persisted);
@@ -227,6 +231,77 @@ describe("workspaceReducer", () => {
       for (const action of actions) {
         expect(workspaceReducer(interviewing, action)).toBe(interviewing);
       }
+    });
+  });
+
+  describe("tickets", () => {
+    const spec = SpecSchema.parse(completeDraft);
+    const T2 = "2026-11-12T10:02:00.000Z";
+    const T3 = "2026-11-12T10:03:00.000Z";
+    const approved = (): WorkspaceState =>
+      run(
+        started,
+        { type: "specPatch", draft: completeDraft },
+        { type: "turn", now: T1, messages: [assistant("Done.")] },
+        { type: "complete", now: T1, spec },
+        { type: "approve", now: T2 },
+      );
+    const generated: WorkspaceAction = {
+      type: "ticketsGenerated",
+      now: T3,
+      tickets: shelfTickets,
+      source: spec,
+    };
+    const renamed = { ...completeDraft, name: "Shelfie" };
+
+    it("stores generated tickets with their source spec and moves to the ticket list", () => {
+      const state = workspaceReducer(approved(), generated);
+
+      expect(project(state)).toMatchObject({
+        stage: "tickets",
+        tickets: { items: shelfTickets, source: spec, generatedAt: T3 },
+      });
+      expect(ticketsStale(project(state))).toBe(false);
+      expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
+    });
+
+    it("ignores generated tickets before approval", () => {
+      const reviewing = workspaceReducer(approved(), { type: "reopen", now: T3 });
+      expect(workspaceReducer(reviewing, generated)).toBe(reviewing);
+    });
+
+    it("marks tickets stale once a changed spec is approved, and regenerating clears it", () => {
+      const withTickets = workspaceReducer(approved(), generated);
+      const edited = runFrom(
+        withTickets,
+        { type: "reopen", now: T3 },
+        { type: "editDraft", now: T3, draft: renamed },
+      );
+      // Not stale yet: the edit hasn't been approved.
+      expect(ticketsStale(project(edited))).toBe(false);
+
+      const reapproved = workspaceReducer(edited, { type: "approve", now: T3 });
+      expect(project(reapproved).stage).toBe("approved");
+      expect(ticketsStale(project(reapproved))).toBe(true);
+
+      const fresh = project(reapproved).approved ?? spec;
+      const regenerated = workspaceReducer(reapproved, { ...generated, source: fresh });
+      expect(ticketsStale(project(regenerated))).toBe(false);
+    });
+
+    it("goes from the approved spec to existing tickets, and back to review", () => {
+      const withTickets = workspaceReducer(approved(), generated);
+      const reopened = workspaceReducer(withTickets, { type: "reopen", now: T3 });
+      expect(project(reopened)).toMatchObject({ stage: "review", tickets: { items: shelfTickets } });
+
+      const reapproved = workspaceReducer(reopened, { type: "approve", now: T3 });
+      const viewing = workspaceReducer(reapproved, { type: "viewTickets", now: T3 });
+      expect(project(viewing).stage).toBe("tickets");
+    });
+
+    it("ignores viewTickets when there are none", () => {
+      const state = approved();
+      expect(workspaceReducer(state, { type: "viewTickets", now: T3 })).toBe(state);
     });
   });
 

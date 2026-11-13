@@ -20,7 +20,12 @@ export type FixtureReply =
   /** An HTTP error before any streaming, as the API returns it. */
   | { kind: "httpError"; status: number; errorType: string }
   /** Streams the content, then an SSE `error` event instead of finishing. */
-  | { kind: "midStreamError"; content: FixtureBlock[]; errorType: string };
+  | { kind: "midStreamError"; content: FixtureBlock[]; errorType: string }
+  /**
+   * Never responds; the request hangs until the client aborts it. (Aborting a mocked body that
+   * is already streaming trips an undici assertion under MSW, so this holds back the headers.)
+   */
+  | { kind: "stall" };
 
 export const reply = (
   content: FixtureBlock[],
@@ -104,7 +109,7 @@ function startFrame(model: string): string {
 }
 
 /** The SSE body the Messages API streams for a reply. */
-function streamBody(fixture: FixtureReply): string {
+function streamBody(fixture: Exclude<FixtureReply, { kind: "stall" }>): string {
   if (fixture.kind === "httpError") return "";
   const frames = [
     startFrame(
@@ -132,7 +137,7 @@ function streamBody(fixture: FixtureReply): string {
   return frames.join("");
 }
 
-function toResponse(fixture: FixtureReply): Response {
+function toResponse(fixture: Exclude<FixtureReply, { kind: "stall" }>): Response {
   // `x-should-retry: false` stops the SDK's automatic retries, so error tests run instantly.
   const headers = { "request-id": "req_fixture", "x-should-retry": "false" };
   if (fixture.kind === "httpError") {
@@ -167,6 +172,12 @@ export function anthropicMessages(replies: FixtureReply[]): {
     });
     const next = replies[requests.length - 1];
     if (!next) throw new Error(`Unscripted Messages API call #${String(requests.length)}`);
+    if (next.kind === "stall") {
+      await new Promise((resolve) => {
+        request.signal.addEventListener("abort", resolve);
+      });
+      return HttpResponse.error();
+    }
     return toResponse(next);
   });
   return { handler, requests };

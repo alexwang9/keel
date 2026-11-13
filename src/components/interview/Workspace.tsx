@@ -5,10 +5,11 @@ import { ChatPanel } from "@/components/interview/ChatPanel";
 import { CorruptStatePrompt } from "@/components/interview/CorruptStatePrompt";
 import { SpecPanel } from "@/components/interview/SpecPanel";
 import { useWorkspace, type Workspace as WorkspaceApi } from "@/components/interview/useWorkspace";
-import { ApprovedSpec } from "@/components/review/ApprovedSpec";
+import { ApprovedSpec, type TicketStatus } from "@/components/review/ApprovedSpec";
 import { SpecReview } from "@/components/review/SpecReview";
-import { awaitingReply } from "@/lib/state/reducer";
-import { emptyState, type PersistedState } from "@/lib/state/schema";
+import { TicketsScreen } from "@/components/tickets/TicketsScreen";
+import { awaitingReply, ticketsStale } from "@/lib/state/reducer";
+import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 import {
   browserStorage,
   loadState,
@@ -34,7 +35,12 @@ function SaveWarning({ problem }: { problem: SaveProblem | null }) {
   );
 }
 
-/** The screen for the project's stage: interview chat, spec review, or the approved spec. */
+const ticketStatus = (project: Project): TicketStatus => {
+  if (!project.tickets) return "none";
+  return ticketsStale(project) ? "stale" : "current";
+};
+
+/** The screen for the project's stage: interview, spec review, the approved spec, or tickets. */
 function Stage({ workspace }: { workspace: WorkspaceApi }) {
   const { project, state } = workspace;
   const { transient } = state;
@@ -51,7 +57,26 @@ function Stage({ workspace }: { workspace: WorkspaceApi }) {
     );
   }
   if (project?.stage === "approved" && project.approved) {
-    return <ApprovedSpec spec={project.approved} onEdit={workspace.reopen} />;
+    return (
+      <ApprovedSpec
+        spec={project.approved}
+        tickets={ticketStatus(project)}
+        onEdit={workspace.reopen}
+        onGenerated={workspace.ticketsGenerated}
+        onViewTickets={workspace.viewTickets}
+      />
+    );
+  }
+  if (project?.stage === "tickets" && project.tickets && project.approved) {
+    return (
+      <TicketsScreen
+        tickets={project.tickets.items}
+        approved={project.approved}
+        stale={ticketsStale(project)}
+        onGenerated={workspace.ticketsGenerated}
+        onEditSpec={workspace.reopen}
+      />
+    );
   }
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[1fr_22rem]">
@@ -80,7 +105,7 @@ function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
   const { project } = workspace;
 
   const startOver = () => {
-    if (window.confirm("Start over? This deletes the current interview and spec.")) {
+    if (window.confirm("Start over? This deletes the current interview, spec and tickets.")) {
       workspace.reset();
     }
   };

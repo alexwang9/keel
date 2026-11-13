@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Composer } from "@/components/interview/Composer";
-import { TurnErrorNotice } from "@/components/interview/TurnErrorNotice";
+import { ErrorNotice } from "@/components/ErrorNotice";
 import type { TurnError } from "@/lib/llm/interview/client";
 import { toTranscript, type HistoryMessage } from "@/lib/llm/interview/history";
 import type { TurnStatus } from "@/lib/state/reducer";
@@ -63,9 +63,9 @@ export function ChatPanel(props: ChatPanelProps) {
         <li ref={endRef} aria-hidden />
       </ol>
       <div aria-live="polite" className="px-6">
-        {error && <TurnErrorNotice error={error} onRetry={onRetry} />}
+        {error && <ErrorNotice error={error} onRetry={onRetry} />}
         {!error && !streaming && awaitingReply && (
-          <TurnErrorNotice
+          <ErrorNotice
             error={{
               code: "unknown",
               message: "Your last message didn't get a reply.",
