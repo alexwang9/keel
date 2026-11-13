@@ -1,7 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { LlmErrorCode } from "@/lib/llm/error-codes";
 import type { InterviewError, InterviewErrorCode } from "@/lib/llm/interview/events";
+import type { TicketError, TicketErrorCode } from "@/lib/llm/tickets/events";
 
-const COPY: Record<InterviewErrorCode, { message: string; retryable: boolean }> = {
+interface Copy {
+  message: string;
+  retryable: boolean;
+}
+
+// Copy that reads the same whichever task failed.
+const SHARED_COPY: Record<Exclude<LlmErrorCode, "bad_request" | "refusal" | "max_tokens">, Copy> = {
   rate_limited: {
     message: "Too many requests right now. Wait a moment and try again.",
     retryable: true,
@@ -11,10 +19,6 @@ const COPY: Record<InterviewErrorCode, { message: string; retryable: boolean }> 
     message: "Couldn't reach the AI service. Check your connection and try again.",
     retryable: true,
   },
-  bad_request: {
-    message: "Something went wrong with this conversation. Try again, or start over.",
-    retryable: false,
-  },
   server_config: {
     message: "Keel isn't set up correctly. The owner has been told.",
     retryable: false,
@@ -23,22 +27,59 @@ const COPY: Record<InterviewErrorCode, { message: string; retryable: boolean }> 
     message: "Keel's AI budget has run out. The owner needs to top it up before you can continue.",
     retryable: false,
   },
+  unknown: { message: "Something went wrong. Try again.", retryable: true },
+};
+
+const INTERVIEW_COPY: Record<InterviewErrorCode, Copy> = {
+  ...SHARED_COPY,
+  bad_request: {
+    message: "Something went wrong with this conversation. Try again, or start over.",
+    retryable: false,
+  },
   refusal: {
     message: "The assistant couldn't help with that. Try rephrasing your message.",
     retryable: false,
   },
   max_tokens: { message: "The reply was cut off. Try again.", retryable: true },
   loop_limit: { message: "The assistant got stuck updating the spec. Try again.", retryable: true },
-  unknown: { message: "Something went wrong. Try again.", retryable: true },
+};
+
+const TICKET_COPY: Record<TicketErrorCode, Copy> = {
+  ...SHARED_COPY,
+  bad_request: {
+    message: "Keel couldn't send this spec for ticket generation. Try again, or edit the spec.",
+    retryable: false,
+  },
+  refusal: {
+    message: "The assistant couldn't break this spec into tickets. Try editing the spec.",
+    retryable: false,
+  },
+  max_tokens: {
+    message: "The ticket list was too long to finish. Try again, or narrow the spec.",
+    retryable: true,
+  },
+  invalid_output: {
+    message: "The generated tickets had problems Keel couldn't fix. Try generating again.",
+    retryable: true,
+  },
+  timeout: {
+    message: "Generating tickets took too long. Try again, or narrow the spec.",
+    retryable: true,
+  },
 };
 
 export const interviewError = (code: InterviewErrorCode): InterviewError => ({
   code,
-  ...COPY[code],
+  ...INTERVIEW_COPY[code],
+});
+
+export const ticketError = (code: TicketErrorCode): TicketError => ({
+  code,
+  ...TICKET_COPY[code],
 });
 
 /** Mid-stream errors arrive as an SSE `error` event with no HTTP status, only an error type. */
-function codeForType(type: string | null): InterviewErrorCode {
+function codeForType(type: string | null): LlmErrorCode {
   switch (type) {
     case "rate_limit_error":
       return "rate_limited";
@@ -60,8 +101,8 @@ const BILLING_MESSAGE = /credit balance is too low/i;
 const isBilling = (error: { type: string | null; message: string }): boolean =>
   error.type === "billing_error" || BILLING_MESSAGE.test(error.message);
 
-/** Maps an error thrown by the SDK to an interview error code, most specific class first. */
-export function codeForError(error: unknown): InterviewErrorCode {
+/** Maps an error thrown by the SDK to an error code, most specific class first. */
+export function codeForError(error: unknown): LlmErrorCode {
   // Before the class checks: billing failures come back under more than one status.
   if (error instanceof Anthropic.APIError && isBilling(error)) return "billing";
   if (error instanceof Anthropic.RateLimitError) return "rate_limited";

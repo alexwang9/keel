@@ -1,31 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FINISH_INTERVIEW, interviewTools, UPDATE_SPEC } from "@/lib/llm/interview/tools";
-
-// Strict tool use rejects these JSON Schema keywords (see the Anthropic structured outputs docs).
-const UNSUPPORTED = new Set([
-  "oneOf",
-  "minLength",
-  "maxLength",
-  "pattern",
-  "maxItems",
-  "minimum",
-  "maximum",
-  "multipleOf",
-  "$schema",
-]);
-
-type Json = unknown;
-
-function* objectsIn(value: Json): Generator<Record<string, Json>> {
-  if (Array.isArray(value)) {
-    for (const item of value) yield* objectsIn(item);
-    return;
-  }
-  if (value === null || typeof value !== "object") return;
-  const record = value as Record<string, Json>;
-  yield record;
-  for (const child of Object.values(record)) yield* objectsIn(child);
-}
+import { objectsIn, UNSUPPORTED_KEYWORDS } from "@/test/json-schema";
 
 const strictTools = interviewTools.filter((tool) => tool.strict === true);
 
@@ -40,7 +15,7 @@ describe("interviewTools", () => {
   it.each(strictTools)("$name uses only keywords strict mode supports", (tool) => {
     // Also collects field names under `properties`; none of ours clash with a keyword.
     const keys = [...objectsIn(tool.input_schema)].flatMap((node) => Object.keys(node));
-    expect(keys.filter((key) => UNSUPPORTED.has(key))).toEqual([]);
+    expect(keys.filter((key) => UNSUPPORTED_KEYWORDS.has(key))).toEqual([]);
   });
 
   it.each(strictTools)("$name closes every object schema", (tool) => {

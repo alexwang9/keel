@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
-import { codeForError, interviewError, requestIdOf } from "@/lib/llm/errors";
+import { codeForError, interviewError, requestIdOf, ticketError } from "@/lib/llm/errors";
 import { INTERVIEW_ERROR_CODES } from "@/lib/llm/interview/events";
+import { TICKET_ERROR_CODES } from "@/lib/llm/tickets/events";
 
 const headers = new Headers({ "request-id": "req_123" });
 const body = (type: string) => ({ type: "error", error: { type, message: "detail" } });
@@ -78,6 +79,21 @@ describe("interviewError", () => {
     expect(interviewError("refusal").retryable).toBe(false);
     expect(interviewError("server_config").retryable).toBe(false);
     expect(interviewError("billing").retryable).toBe(false);
+  });
+});
+
+describe("ticketError", () => {
+  it.each(TICKET_ERROR_CODES)("has friendly copy for %s", (code) => {
+    const error = ticketError(code);
+    expect(error.code).toBe(code);
+    expect(error.message.length).toBeGreaterThan(10);
+    expect(error.message).not.toMatch(/anthropic|api|429|500/i);
+  });
+
+  it("lets the user retry a failed repair or a timeout, but not a refusal", () => {
+    expect(ticketError("invalid_output").retryable).toBe(true);
+    expect(ticketError("timeout").retryable).toBe(true);
+    expect(ticketError("refusal").retryable).toBe(false);
   });
 });
 

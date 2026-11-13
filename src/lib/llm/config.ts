@@ -21,3 +21,10 @@ export const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 /** Model calls one interview request may make before it gives up (tool loop guard). */
 export const INTERVIEW_MAX_STEPS = 5;
+
+/**
+ * How long one ticket generation call may stream before the server stops it and reports a
+ * timeout. Below Vercel Hobby's 300s function limit, so the client gets a typed error instead of
+ * a cut-off stream.
+ */
+export const TICKET_GENERATION_DEADLINE_MS = 280_000;
