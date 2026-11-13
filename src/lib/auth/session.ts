@@ -2,6 +2,7 @@ import "server-only";
 import { getIronSession, type CookieJar, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { z } from "zod";
 import { getEnv, type Env } from "@/lib/env";
 import { logWarn } from "@/lib/log";
@@ -91,6 +92,9 @@ export async function takeOAuthState(source: CookieSource): Promise<OAuthState |
 
 /** Full session for server code that calls GitHub (route handlers, later phases). */
 export async function getSession(): Promise<SessionData | null> {
+  // Unsealing checks expiry against the current time, so the session can't be read during a
+  // prerender (Partial Prefetching prerenders cookie reads). `connection()` defers it to the request.
+  await connection();
   return readSession(await cookies());
 }
 

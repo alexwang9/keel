@@ -5,17 +5,26 @@ import { getSessionUser, isSecureCookie, readSession, writeSession } from "@/lib
 import { cookieHeader, setCookie } from "@/test/cookies";
 import { stubTestEnv } from "@/test/fixtures/env";
 
-// Server components read cookies through `next/headers`; give them the request's cookies.
-const requestCookies = vi.hoisted(() => ({ header: "" }));
+// Server components read cookies through `next/headers` inside a request scope; fake both, and
+// record the order of calls so the test can check the session is never read before `connection()`.
+const request = vi.hoisted(() => ({ cookieHeader: "", calls: [] as string[] }));
 vi.mock("next/headers", () => ({
-  cookies: () =>
-    Promise.resolve({
+  cookies: () => {
+    request.calls.push("cookies");
+    return Promise.resolve({
       get: (name: string) => {
-        const pair = requestCookies.header.split("; ").find((c) => c.startsWith(`${name}=`));
+        const pair = request.cookieHeader.split("; ").find((c) => c.startsWith(`${name}=`));
         return pair ? { name, value: pair.slice(name.length + 1) } : undefined;
       },
       set: () => undefined,
-    }),
+    });
+  },
+}));
+vi.mock("next/server", () => ({
+  connection: () => {
+    request.calls.push("connection");
+    return Promise.resolve();
+  },
 }));
 
 beforeAll(() => {
@@ -62,7 +71,7 @@ describe("session cookie", () => {
 
 describe("getSessionUser", () => {
   it("gives UI code the login and avatar but never the token", async () => {
-    requestCookies.header = cookieHeader(await written());
+    request.cookieHeader = cookieHeader(await written());
 
     const user = await getSessionUser();
 
@@ -70,8 +79,17 @@ describe("getSessionUser", () => {
     expect(JSON.stringify(user)).not.toContain("gho_secret");
   });
 
+  it("defers to request time before reading the cookie", async () => {
+    request.calls = [];
+
+    await getSessionUser();
+
+    // Unsealing calls Date.now(), which Next rejects while prerendering cookie reads.
+    expect(request.calls).toEqual(["connection", "cookies"]);
+  });
+
   it("is null when signed out", async () => {
-    requestCookies.header = "";
+    request.cookieHeader = "";
 
     expect(await getSessionUser()).toBeNull();
   });
