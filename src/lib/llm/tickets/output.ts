@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { transformJSONSchema } from "@anthropic-ai/sdk/lib/transform-json-schema";
 import { z } from "zod";
-import { MAX_REPAIR_ERRORS } from "@/lib/llm/tickets/events";
+import { capRepairErrors } from "@/lib/llm/repair";
 import { err, ok, type Result } from "@/lib/result";
 import { formatDagError, topoSort } from "@/lib/tickets/dag";
 import { TicketListSchema, type Ticket } from "@/lib/tickets/schema";
@@ -21,16 +21,6 @@ export const ticketOutputFormat: Anthropic.Beta.BetaJSONOutputFormat = {
   schema: transformJSONSchema(z.toJSONSchema(TicketOutputSchema, { io: "input", reused: "ref" })),
 };
 
-const MAX_ERROR_CHARS = 1000;
-
-/** Fits errors into a repair request: each one shortened, and any beyond the cap summarised. */
-function capped(errors: readonly string[]): string[] {
-  const clipped = errors.map((error) => error.slice(0, MAX_ERROR_CHARS));
-  if (clipped.length <= MAX_REPAIR_ERRORS) return clipped;
-  const kept = clipped.slice(0, MAX_REPAIR_ERRORS - 1);
-  return [...kept, `…and ${String(clipped.length - kept.length)} more problems`];
-}
-
 /**
  * Parses the model's JSON into tickets in topological order. Fails with readable errors (schema
  * issues, then dependency graph errors) capped to what a repair request accepts.
@@ -41,12 +31,12 @@ export function parseTicketOutput(text: string): Result<Ticket[], string[]> {
     json = JSON.parse(text);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    return err(capped([`output is not valid JSON: ${detail}`]));
+    return err(capRepairErrors([`output is not valid JSON: ${detail}`]));
   }
   const parsed = TicketOutputSchema.safeParse(json);
-  if (!parsed.success) return err(capped(formatIssues(parsed.error.issues)));
+  if (!parsed.success) return err(capRepairErrors(formatIssues(parsed.error.issues)));
   const sorted = topoSort(parsed.data.tickets);
-  if (!sorted.ok) return err(capped(sorted.error.map(formatDagError)));
+  if (!sorted.ok) return err(capRepairErrors(sorted.error.map(formatDagError)));
   return ok(sorted.value);
 }
 

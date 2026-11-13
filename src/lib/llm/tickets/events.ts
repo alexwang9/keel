@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LLM_ERROR_CODES } from "@/lib/llm/error-codes";
+import { InvalidEventSchema } from "@/lib/llm/repair";
 import { TicketListSchema } from "@/lib/tickets/schema";
 
 export const TICKET_ERROR_CODES = [...LLM_ERROR_CODES, "invalid_output", "timeout"] as const;
@@ -9,13 +10,6 @@ export const TicketErrorSchema = z.object({
   message: z.string(),
   retryable: z.boolean(),
 });
-
-/** Largest model output passed back for repair, in characters. 64k tokens stays well below it. */
-export const MAX_REPAIR_OUTPUT_CHARS = 400_000;
-/** Validation errors passed back for repair. More than this adds noise, not information. */
-export const MAX_REPAIR_ERRORS = 30;
-
-const repairError = z.string().min(1).max(1000);
 
 /**
  * Events streamed by `POST /api/tickets/generate`. Progress events carry no ticket text. One
@@ -28,21 +22,11 @@ export const TicketEventSchema = z.discriminatedUnion("type", [
   // Tickets seen so far in the streamed output. A progress hint, not a parse.
   z.object({ type: z.literal("drafting"), count: z.int().nonnegative() }),
   z.object({ type: z.literal("validating") }),
-  z.object({
-    type: z.literal("invalid"),
-    output: z.string().max(MAX_REPAIR_OUTPUT_CHARS),
-    errors: z.array(repairError).min(1).max(MAX_REPAIR_ERRORS),
-  }),
+  InvalidEventSchema,
   z.object({ type: z.literal("complete"), tickets: TicketListSchema }),
   z.object({ type: z.literal("error"), error: TicketErrorSchema }),
 ]);
 
-export const RepairSchema = z.object({
-  output: z.string().min(1).max(MAX_REPAIR_OUTPUT_CHARS),
-  errors: z.array(repairError).min(1).max(MAX_REPAIR_ERRORS),
-});
-
 export type TicketError = z.infer<typeof TicketErrorSchema>;
 export type TicketErrorCode = TicketError["code"];
 export type TicketEvent = z.infer<typeof TicketEventSchema>;
-export type Repair = z.infer<typeof RepairSchema>;

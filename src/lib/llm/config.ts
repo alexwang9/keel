@@ -28,3 +28,6 @@ export const INTERVIEW_MAX_STEPS = 5;
  * a cut-off stream.
  */
 export const TICKET_GENERATION_DEADLINE_MS = 280_000;
+
+/** The same budget for one impact check call (Vercel Hobby's 300s limit, less a margin). */
+export const TICKET_IMPACT_DEADLINE_MS = 280_000;

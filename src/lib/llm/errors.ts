@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { LlmErrorCode } from "@/lib/llm/error-codes";
+import type { ImpactError, ImpactErrorCode } from "@/lib/llm/impact/events";
 import type { InterviewError, InterviewErrorCode } from "@/lib/llm/interview/events";
 import type { TicketError, TicketErrorCode } from "@/lib/llm/tickets/events";
 
@@ -68,6 +69,24 @@ const TICKET_COPY: Record<TicketErrorCode, Copy> = {
   },
 };
 
+const IMPACT_COPY: Record<ImpactErrorCode, Copy> = {
+  ...SHARED_COPY,
+  bad_request: {
+    message: "Keel couldn't send these tickets for an impact check. Try again.",
+    retryable: false,
+  },
+  refusal: {
+    message: "The assistant couldn't check these edits. Try changing them.",
+    retryable: false,
+  },
+  max_tokens: { message: "The proposal was too long to finish. Try again.", retryable: true },
+  invalid_output: {
+    message: "The proposed changes had problems Keel couldn't fix. Try checking again.",
+    retryable: true,
+  },
+  timeout: { message: "The impact check took too long. Try again.", retryable: true },
+};
+
 export const interviewError = (code: InterviewErrorCode): InterviewError => ({
   code,
   ...INTERVIEW_COPY[code],
@@ -76,6 +95,11 @@ export const interviewError = (code: InterviewErrorCode): InterviewError => ({
 export const ticketError = (code: TicketErrorCode): TicketError => ({
   code,
   ...TICKET_COPY[code],
+});
+
+export const impactError = (code: ImpactErrorCode): ImpactError => ({
+  code,
+  ...IMPACT_COPY[code],
 });
 
 /** Mid-stream errors arrive as an SSE `error` event with no HTTP status, only an error type. */

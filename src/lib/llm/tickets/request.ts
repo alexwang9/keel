@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RepairSchema } from "@/lib/llm/tickets/events";
+import { RepairSchema } from "@/lib/llm/repair";
 import { parseJsonBody, type RequestProblem } from "@/lib/request-body";
 import type { Result } from "@/lib/result";
 import { SpecSchema } from "@/lib/spec/schema";

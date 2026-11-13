@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_REPAIR_ERRORS } from "@/lib/llm/tickets/events";
+import { MAX_REPAIR_ERRORS } from "@/lib/llm/repair";
 import { parseTicketOutput, ticketCounter, ticketOutputFormat } from "@/lib/llm/tickets/output";
 import { objectsIn, UNSUPPORTED_KEYWORDS } from "@/test/json-schema";
 import { shelfTickets, ticket } from "@/test/fixtures/tickets";
