@@ -79,6 +79,7 @@ function Stage({ workspace }: { workspace: WorkspaceApi }) {
         onEditSpec={workspace.reopen}
         onSaveTicket={workspace.saveTicket}
         onDeleteTicket={workspace.deleteTicket}
+        onApplyImpact={workspace.applyImpact}
       />
     );
   }

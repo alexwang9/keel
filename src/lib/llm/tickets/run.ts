@@ -1,12 +1,14 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { FALLBACK_BETA, LLM_TASKS, TICKET_GENERATION_DEADLINE_MS } from "@/lib/llm/config";
-import { codeForError, requestIdOf, ticketError } from "@/lib/llm/errors";
-import { MAX_REPAIR_OUTPUT_CHARS, type TicketEvent } from "@/lib/llm/tickets/events";
+import { ticketError } from "@/lib/llm/errors";
+import { repairable } from "@/lib/llm/repair";
+import { outputText, stopProblem, streamStructured, withDeadline } from "@/lib/llm/structured";
+import type { TicketEvent } from "@/lib/llm/tickets/events";
 import { parseTicketOutput, ticketCounter, ticketOutputFormat } from "@/lib/llm/tickets/output";
 import { TICKET_SYSTEM_PROMPT, ticketMessages } from "@/lib/llm/tickets/prompt";
 import type { TicketRequest } from "@/lib/llm/tickets/request";
-import { logError, logWarn } from "@/lib/log";
+import { logWarn } from "@/lib/log";
 import { renderSpecMarkdown } from "@/lib/spec/render";
 
 const config = LLM_TASKS.ticketGeneration;
@@ -31,60 +33,22 @@ async function* streamCall(
   input: TicketRequest,
   signal: AbortSignal,
 ): AsyncGenerator<TicketEvent, Anthropic.Beta.BetaMessage> {
-  const stream = client.beta.messages.stream(requestParams(input), { signal });
+  const stream = streamStructured(client, requestParams(input), signal);
   let count = ticketCounter();
-  let text = "";
   let drafted = 0;
-  let thinking = false;
-  for await (const event of stream) {
-    if (event.type === "content_block_start") {
-      const { type } = event.content_block;
-      if (type === "thinking" && !thinking) {
-        thinking = true;
-        yield { type: "thinking" };
-      }
-      // A refusal fallback restarts the answer on another model: count from scratch.
-      if (type === "fallback") {
-        count = ticketCounter();
-        text = "";
-      }
+  for (;;) {
+    const next = await stream.next();
+    if (next.done) return next.value;
+    const progress = next.value;
+    if (progress.type === "thinking") yield { type: "thinking" };
+    // A refusal fallback restarts the answer on another model: count from scratch.
+    if (progress.type === "restart") count = ticketCounter();
+    if (progress.type !== "text") continue;
+    const seen = count(progress.text);
+    if (seen !== drafted) {
+      drafted = seen;
+      yield { type: "drafting", count: seen };
     }
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      text += event.delta.text;
-      const seen = count(text);
-      if (seen !== drafted) {
-        drafted = seen;
-        yield { type: "drafting", count: seen };
-      }
-    }
-  }
-  return stream.finalMessage();
-}
-
-/** The answer's text. Blocks before the last refusal fallback belong to the declined attempt. */
-function outputText(message: Anthropic.Beta.BetaMessage): string {
-  const lastFallback = message.content.findLastIndex((block) => block.type === "fallback");
-  return message.content
-    .slice(lastFallback + 1)
-    .flatMap((block) => (block.type === "text" ? [block.text] : []))
-    .join("");
-}
-
-/** Why a finished call's output can't be used, if it can't. */
-function stopProblem(message: Anthropic.Beta.BetaMessage): TicketEvent | null {
-  switch (message.stop_reason) {
-    case "refusal":
-      logWarn("tickets.refusal", {
-        model: message.model,
-        category: message.stop_details?.category ?? "none",
-      });
-      return { type: "error", error: ticketError("refusal") };
-    case "max_tokens":
-    case "model_context_window_exceeded":
-      logWarn("tickets.truncated", { stopReason: message.stop_reason });
-      return { type: "error", error: ticketError("max_tokens") };
-    default:
-      return null;
   }
 }
 
@@ -95,9 +59,9 @@ async function* generate(
 ): AsyncGenerator<TicketEvent> {
   yield { type: "started" };
   const message = yield* streamCall(client, input, signal);
-  const problem = stopProblem(message);
+  const problem = stopProblem(message, "tickets");
   if (problem) {
-    yield problem;
+    yield { type: "error", error: ticketError(problem) };
     return;
   }
 
@@ -112,7 +76,7 @@ async function* generate(
   const attempt = input.repair ? "repair" : "first";
   logWarn("tickets.invalid_output", { attempt, errors: parsed.error.length });
   // One repair only, and only for an output the repair request can carry back.
-  if (input.repair || output === "" || output.length > MAX_REPAIR_OUTPUT_CHARS) {
+  if (input.repair || !repairable(output)) {
     yield { type: "error", error: ticketError("invalid_output") };
     return;
   }
@@ -129,26 +93,17 @@ export interface GenerationOptions {
  * failures become an `error` event, with details in the server log. Stops quietly if `signal`
  * aborts, and reports `timeout` if the deadline passes first.
  */
-export async function* runTicketGeneration(
+export function runTicketGeneration(
   client: Anthropic,
   input: TicketRequest,
   signal?: AbortSignal,
   options: GenerationOptions = {},
 ): AsyncGenerator<TicketEvent> {
-  const deadline = AbortSignal.timeout(options.deadlineMs ?? TICKET_GENERATION_DEADLINE_MS);
-  const combined = signal ? AbortSignal.any([signal, deadline]) : deadline;
-  try {
-    yield* generate(client, input, combined);
-  } catch (error) {
-    if (signal?.aborted) return;
-    if (deadline.aborted) {
-      logWarn("tickets.timeout", { attempt: input.repair ? "repair" : "first" });
-      yield { type: "error", error: ticketError("timeout") };
-      return;
-    }
-    const code = codeForError(error);
-    const requestId = requestIdOf(error);
-    logError("tickets.failed", error, { code, ...(requestId ? { requestId } : {}) });
-    yield { type: "error", error: ticketError(code) };
-  }
+  return withDeadline((combined) => generate(client, input, combined), {
+    task: "tickets",
+    attempt: input.repair ? "repair" : "first",
+    deadlineMs: options.deadlineMs ?? TICKET_GENERATION_DEADLINE_MS,
+    signal,
+    toError: (code) => ({ type: "error", error: ticketError(code) }),
+  });
 }

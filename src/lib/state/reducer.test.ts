@@ -12,6 +12,7 @@ import {
   type WorkspaceState,
 } from "@/lib/state/reducer";
 import { emptyState, PersistedStateSchema, type Project } from "@/lib/state/schema";
+import { checkedTickets, editedTickets, fixOps } from "@/test/fixtures/impact";
 import { completeDraft } from "@/test/fixtures/spec";
 import { shelfTickets, ticket } from "@/test/fixtures/tickets";
 
@@ -342,6 +343,56 @@ describe("workspaceReducer", () => {
         "The spec changed after these tickets were generated. Regenerate them.",
       ]);
       expect(createBlockers(project(approved()))).toEqual(["There are no tickets yet."]);
+    });
+
+    describe("impactApplied", () => {
+      const edited = () =>
+        runFrom(workspaceReducer(approved(), generated), {
+          type: "editTickets",
+          now: T3,
+          tickets: editedTickets,
+        });
+      const applied = (ops = fixOps, basis = editedTickets): WorkspaceAction => ({
+        type: "impactApplied",
+        now: T3,
+        basis,
+        ops,
+      });
+
+      it("applies accepted ops, sorts the result and clears unchecked edits", () => {
+        const state = workspaceReducer(edited(), applied());
+        const set = project(state).tickets;
+
+        expect(set?.items.map((t) => t.id)).toEqual(["T1", "T2", "T5", "T4"]);
+        expect(set?.checked).toEqual(set?.items);
+        expect(set?.items.find((t) => t.id === "T4")).toMatchObject({
+          dependsOn: ["T2", "T5"],
+          size: "M",
+        });
+        expect(createBlockers(project(state))).toEqual([]);
+        expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
+      });
+
+      it("marks valid tickets checked when no changes are needed", () => {
+        const state = runFrom(
+          workspaceReducer(approved(), generated),
+          { type: "editTickets", now: T3, tickets: checkedTickets.slice(0, 3) },
+          applied([], checkedTickets.slice(0, 3)),
+        );
+        expect(createBlockers(project(state))).toEqual([]);
+      });
+
+      it("refuses ops that leave the dependencies invalid", () => {
+        const state = edited();
+        const partial = fixOps.filter((op) => op.op === "updateTicket");
+        expect(workspaceReducer(state, applied(partial))).toBe(state);
+        expect(workspaceReducer(state, applied([]))).toBe(state);
+      });
+
+      it("refuses a proposal for tickets that have changed since the check", () => {
+        const state = edited();
+        expect(workspaceReducer(state, applied(fixOps, checkedTickets))).toBe(state);
+      });
     });
 
     it("ignores viewTickets when there are none", () => {

@@ -1,6 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
-import { codeForError, interviewError, requestIdOf, ticketError } from "@/lib/llm/errors";
+import {
+  codeForError,
+  impactError,
+  interviewError,
+  requestIdOf,
+  ticketError,
+} from "@/lib/llm/errors";
+import { IMPACT_ERROR_CODES } from "@/lib/llm/impact/events";
 import { INTERVIEW_ERROR_CODES } from "@/lib/llm/interview/events";
 import { TICKET_ERROR_CODES } from "@/lib/llm/tickets/events";
 
@@ -94,6 +101,15 @@ describe("ticketError", () => {
     expect(ticketError("invalid_output").retryable).toBe(true);
     expect(ticketError("timeout").retryable).toBe(true);
     expect(ticketError("refusal").retryable).toBe(false);
+  });
+});
+
+describe("impactError", () => {
+  it.each(IMPACT_ERROR_CODES)("has friendly copy for %s", (code) => {
+    const error = impactError(code);
+    expect(error.code).toBe(code);
+    expect(error.message.length).toBeGreaterThan(10);
+    expect(error.message).not.toMatch(/anthropic|api|429|500/i);
   });
 });
 

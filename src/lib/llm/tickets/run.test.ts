@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { createAnthropicClient } from "@/lib/llm/client";
-import type { Repair, TicketEvent } from "@/lib/llm/tickets/events";
+import type { Repair } from "@/lib/llm/repair";
+import type { TicketEvent } from "@/lib/llm/tickets/events";
 import { TICKET_SYSTEM_PROMPT } from "@/lib/llm/tickets/prompt";
 import { runTicketGeneration, type GenerationOptions } from "@/lib/llm/tickets/run";
 import { renderSpecMarkdown } from "@/lib/spec/render";
@@ -88,7 +89,10 @@ describe("runTicketGeneration: success", () => {
     const drafting = events.flatMap((e) => (e.type === "drafting" ? [e.count] : []));
     expect(drafting.at(-1)).toBe(4);
     // Ties keep input position, so reversed T2 and T3 stay reversed.
-    const tickets = last(events)?.type === "complete" ? (last(events) as { tickets: { id: string }[] }).tickets : [];
+    const tickets =
+      last(events)?.type === "complete"
+        ? (last(events) as { tickets: { id: string }[] }).tickets
+        : [];
     expect(tickets.map((t) => t.id)).toEqual(["T1", "T3", "T2", "T4"]);
   });
 

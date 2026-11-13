@@ -134,16 +134,19 @@ Done when:
 
 Carried to Phase 10: enable the Create repo button in `CreateGate` once `createBlockers` is empty.
 
-## [ ] Phase 9: Edit-impact proposals
+## [x] Phase 9: Edit-impact proposals (`1a88562`, `087a81a`)
+
+Split into 9a (backend) and 9b (UI) on one branch (Rule 3), one PR as for Phases 6–8.
 
 Done when:
 
-- [ ] `POST /api/tickets/impact`: sends the spec, the current tickets and a summary of the edits; Opus returns typed proposal ops with reasons
-- [ ] Proposal review UI: accept or reject each op; the resulting DAG is previewed and validated before applying
-- [ ] Applying clears the "unchecked" state; "No changes needed" is a valid outcome
-- [ ] Nothing changes without explicit acceptance (tested)
-- [ ] Tests: proposal parse, apply subset, invalid combination blocked, API error
-- [ ] Committed
+- [x] `POST /api/tickets/impact`: sends the spec, the current tickets and a summary of the edits; Opus returns typed proposal ops with reasons. The server builds the summary from the checked and current lists (`describeTicketEdits`), and validates the proposal as a whole, with one client-driven repair like generation
+- [x] Proposal review UI: accept or reject each op; the resulting DAG is previewed and validated before applying
+- [x] Applying clears the "unchecked" state; "No changes needed" is a valid outcome
+- [x] Nothing changes without explicit acceptance (tested)
+- [x] Tests: proposal parse, apply subset, invalid combination blocked, API error (plus repair, reused ids, refusal, timeout, stale basis, dismiss)
+- [x] Manual check: one real impact check against the live API (owner), confirming the API accepts the proposal grammar and the proposal makes sense. The owner's run passed
+- [x] Committed
 
 ## [ ] Phase 10: Create repo, commit and issues (resumable)
 
