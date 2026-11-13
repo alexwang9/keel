@@ -18,6 +18,7 @@ const saved: PersistedState = {
       draft: { name: "Shelf" },
       spec: null,
       approved: null,
+      tickets: null,
     },
   },
 };
@@ -52,8 +53,8 @@ describe("loadState", () => {
     expect(loadState(storage)).toEqual({ kind: "ok", state: saved });
   });
 
-  it("loads a state saved before approval existed, with no approval", () => {
-    const project = Object.entries(saved.projects[ID] ?? {}).filter(([key]) => key !== "approved");
+  it.each(["approved", "tickets"])("loads a state saved before %s existed, as null", (field) => {
+    const project = Object.entries(saved.projects[ID] ?? {}).filter(([key]) => key !== field);
     const raw = JSON.stringify({ ...saved, projects: { [ID]: Object.fromEntries(project) } });
 
     expect(loadState(memoryStorage({ [STORAGE_KEY]: raw }))).toEqual({ kind: "ok", state: saved });

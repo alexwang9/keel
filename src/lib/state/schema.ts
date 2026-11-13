@@ -1,13 +1,21 @@
 import { z } from "zod";
 import { HistoryMessageSchema, HISTORY_LIMITS } from "@/lib/llm/interview/history";
 import { SpecDraftSchema, SpecSchema } from "@/lib/spec/schema";
+import { TicketListSchema } from "@/lib/tickets/schema";
 
 /** The localStorage key. The version in the key and in the object move together. */
 export const STORAGE_KEY = "keel:project:v1";
 export const STATE_VERSION = 1;
 
-/** Where a project is in the flow. Later phases add ticket and creation stages. */
-export const STAGES = ["interview", "review", "approved"] as const;
+/** Where a project is in the flow. Later phases add creation stages. */
+export const STAGES = ["interview", "review", "approved", "tickets"] as const;
+
+/** Generated tickets, with the approved spec they came from so staleness can be worked out. */
+export const TicketSetSchema = z.object({
+  items: TicketListSchema,
+  source: SpecSchema,
+  generatedAt: z.iso.datetime(),
+});
 
 export const ProjectSchema = z.object({
   id: z.uuid(),
@@ -24,6 +32,8 @@ export const ProjectSchema = z.object({
   // The spec as of the last Approve. Kept when an edit reopens review, so tickets generated from
   // it can tell they are stale. Defaulted so states saved before Phase 6 still load.
   approved: SpecSchema.nullable().default(null),
+  // Defaulted so states saved before Phase 7 still load.
+  tickets: TicketSetSchema.nullable().default(null),
 });
 
 /**
@@ -47,6 +57,7 @@ export const PersistedStateSchema = z
 
 export type Stage = (typeof STAGES)[number];
 export type Project = z.infer<typeof ProjectSchema>;
+export type TicketSet = z.infer<typeof TicketSetSchema>;
 export type PersistedState = z.infer<typeof PersistedStateSchema>;
 
 export const emptyState = (): PersistedState => ({

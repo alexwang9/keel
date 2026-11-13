@@ -103,17 +103,20 @@ Done when:
 
 Carried to Phase 12: the chat shows the model's Markdown raw (e.g. `**Name:**`); render it, or tell the model to write plain text.
 
-## [ ] Phase 7: Ticket generation
+## [~] Phase 7: Ticket generation (`6724814`, 7b pending hash)
+
+Split into 7a (backend) and 7b (client state and UI) on one branch (Rule 3; the owner chose one PR, as for Phase 6).
 
 Done when:
 
-- [ ] `POST /api/tickets/generate` (auth required): Opus via structured outputs on a streamed request; progress events over SSE
-- [ ] Output Zod-parsed + `validateDag`; on failure, one repair retry with the errors, then a clear error
-- [ ] Prompt encodes the ticket rules (one user-visible behavior, ~3–8 files, 200–500 line diff, S/M/L, plain-English acceptance checks)
-- [ ] Generated tickets saved to client state; the UI moves to the ticket list
-- [ ] Tickets record the approved spec they came from; when `approved` differs, they show as stale with a "Regenerate" offer (moved from Phase 6)
-- [ ] Tests: valid generation, cyclic output → repair → success, repair fails → error, refusal
-- [ ] Committed
+- [x] `POST /api/tickets/generate` (auth required): Opus via structured outputs on a streamed request; progress events over SSE
+- [x] Output Zod-parsed + `validateDag`; on failure, one repair retry with the errors, then a clear error. The retry is a second request sent by the client, so each call fits Vercel Hobby's 300s (see DECISIONS.md)
+- [x] Prompt encodes the ticket rules (one user-visible behavior, ~3–8 files, 200–500 line diff, S/M/L, plain-English acceptance checks)
+- [x] Generated tickets saved to client state; the UI moves to the ticket list
+- [x] Tickets record the approved spec they came from; when `approved` differs, they show as stale with a "Regenerate" offer (moved from Phase 6)
+- [x] Tests: valid generation, cyclic output → repair → success, repair fails → error, refusal (plus timeout, abort, HTTP and stream errors)
+- [ ] Manual check: one real generation against the live API (owner), confirming the API accepts the output grammar and a realistic spec finishes within the 280s deadline at `high` effort
+- [x] Committed
 
 ## [ ] Phase 8: Ticket review and edit
 

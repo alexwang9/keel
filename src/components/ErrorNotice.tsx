@@ -1,12 +1,17 @@
-import type { TurnError } from "@/lib/llm/interview/client";
+/** Any task's user-facing error: an interview turn or ticket generation. */
+export interface NoticeError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
 
-interface TurnErrorNoticeProps {
-  error: TurnError;
+interface ErrorNoticeProps {
+  error: NoticeError;
   onRetry: () => void;
 }
 
-/** Friendly copy for a failed turn, with Retry when retrying can help. */
-export function TurnErrorNotice({ error, onRetry }: TurnErrorNoticeProps) {
+/** Friendly copy for a failed request, with Retry when retrying can help. */
+export function ErrorNotice({ error, onRetry }: ErrorNoticeProps) {
   return (
     <div
       role="alert"

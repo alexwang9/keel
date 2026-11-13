@@ -5,7 +5,7 @@ import { sendTurn, type TurnEvent } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { SpecSchema } from "@/lib/spec/schema";
 import { completeDraft } from "@/test/fixtures/spec";
-import { events, interviewApi } from "@/test/msw/interview";
+import { events, interviewApi } from "@/test/msw/sse-routes";
 
 const history: HistoryMessage[] = [{ role: "user", content: "A book club app." }];
 const assistant: HistoryMessage = { role: "assistant", content: [{ type: "text", text: "Hi!" }] };

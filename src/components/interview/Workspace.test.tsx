@@ -6,7 +6,7 @@ import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { SpecSchema } from "@/lib/spec/schema";
 import { PersistedStateSchema, STORAGE_KEY, type PersistedState } from "@/lib/state/schema";
 import { completeDraft } from "@/test/fixtures/spec";
-import { events, interviewApi } from "@/test/msw/interview";
+import { events, interviewApi } from "@/test/msw/sse-routes";
 
 const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
 const T0 = "2026-11-12T10:00:00.000Z";
