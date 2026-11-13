@@ -54,18 +54,20 @@ Done when:
 - [x] Tests: callback happy path, state mismatch, allowlist rejection (GitHub mocked with MSW), and an assertion that no response body or client prop contains the token
 - [x] Committed
 
-## [ ] Phase 4: Interview backend
+## [x] Phase 4: Interview backend (`2524280`, `0ae4f6e`)
 
 Done when:
 
-- [ ] `src/lib/llm/config.ts` holds models, effort and max tokens per task (`claude-sonnet-5-5` for the interview); `src/lib/llm/client.ts` is the single Anthropic client factory
-- [ ] Interview system prompt + `update_spec` (strict) and `finish_interview` tool definitions generated from the Zod schemas
-- [ ] `POST /api/interview` (auth required): validates `{ history, draft }`, streams SSE events (`text`, `specPatch`, `complete`, `error`), and runs the tool loop server-side within one request
-- [ ] `finish_interview` is rejected with an error `tool_result` when `isSpecComplete` fails
-- [ ] Refusal, `max_tokens`, rate-limit and connection errors map to typed error events
-- [ ] Prompt caching set on the stable prefix
-- [ ] Tests with MSW SSE fixtures: patch applied, invalid tool input rejected, premature finish rejected, refusal path, API error path
-- [ ] Committed
+- [x] `src/lib/llm/config.ts` holds models, effort and max tokens per task (`claude-sonnet-5-5` for the interview); `src/lib/llm/client.ts` is the single Anthropic client factory
+- [x] Interview system prompt + `update_spec` and `finish_interview` tool definitions generated from the Zod schemas (`finish_interview` is strict; `update_spec` isn't, because the API rejected its strict grammar as too large; see DECISIONS.md)
+- [x] `POST /api/interview` (auth required): validates `{ history, draft }`, streams SSE events (`text`, `specPatch`, `turn`, `complete`, `error`), and runs the tool loop server-side within one request
+- [x] `finish_interview` is rejected with an error `tool_result` when `isSpecComplete` fails
+- [x] Refusal, `max_tokens`, rate-limit and connection errors map to typed error events
+- [x] Prompt caching set on the stable prefix (live check: 4,777 tokens written to the cache on the first call)
+- [x] Tests with MSW SSE fixtures: patch applied, invalid tool input rejected, premature finish rejected, refusal path, API error path
+- [x] Committed
+
+Carried to Phase 5: a billing failure ("credit balance is too low") arrives as a 400 and currently shows the `bad_request` copy; review it with the other UI error copy.
 
 ## [ ] Phase 5: Interview UI + client state
 
