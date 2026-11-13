@@ -134,9 +134,9 @@ Done when:
 
 Carried to Phase 10: enable the Create repo button in `CreateGate` once `createBlockers` is empty.
 
-## [~] Phase 9: Edit-impact proposals (`1a88562`, `087a81a`)
+## [x] Phase 9: Edit-impact proposals (`1a88562`, `087a81a`)
 
-Split into 9a (backend) and 9b (UI) on one branch (Rule 3), one PR as for Phases 6–8. Waiting on the live check below.
+Split into 9a (backend) and 9b (UI) on one branch (Rule 3), one PR as for Phases 6–8.
 
 Done when:
 
@@ -145,7 +145,7 @@ Done when:
 - [x] Applying clears the "unchecked" state; "No changes needed" is a valid outcome
 - [x] Nothing changes without explicit acceptance (tested)
 - [x] Tests: proposal parse, apply subset, invalid combination blocked, API error (plus repair, reused ids, refusal, timeout, stale basis, dismiss)
-- [ ] Manual check: one real impact check against the live API (owner), confirming the API accepts the proposal grammar and the proposal makes sense
+- [x] Manual check: one real impact check against the live API (owner), confirming the API accepts the proposal grammar and the proposal makes sense. The owner's run passed
 - [x] Committed
 
 ## [ ] Phase 10: Create repo, commit and issues (resumable)
