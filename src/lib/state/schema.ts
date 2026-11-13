@@ -10,12 +10,20 @@ export const STATE_VERSION = 1;
 /** Where a project is in the flow. Later phases add creation stages. */
 export const STAGES = ["interview", "review", "approved", "tickets"] as const;
 
-/** Generated tickets, with the approved spec they came from so staleness can be worked out. */
-export const TicketSetSchema = z.object({
-  items: TicketListSchema,
-  source: SpecSchema,
-  generatedAt: z.iso.datetime(),
-});
+/**
+ * Generated tickets, with the approved spec they came from so staleness can be worked out.
+ * `checked` is the list as of the last impact check (or generation); `items` differing from it
+ * means there are unchecked edits.
+ */
+export const TicketSetSchema = z
+  .object({
+    items: TicketListSchema,
+    // Optional so states saved before Phase 8 still load: nothing has been edited yet.
+    checked: TicketListSchema.optional(),
+    source: SpecSchema,
+    generatedAt: z.iso.datetime(),
+  })
+  .transform(({ checked, ...set }) => ({ ...set, checked: checked ?? set.items }));
 
 export const ProjectSchema = z.object({
   id: z.uuid(),

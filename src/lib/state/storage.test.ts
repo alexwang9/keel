@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { emptyState, STORAGE_KEY, type PersistedState } from "@/lib/state/schema";
 import { loadState, saveState } from "@/lib/state/storage";
+import { SpecSchema } from "@/lib/spec/schema";
+import { completeDraft } from "@/test/fixtures/spec";
+import { shelfTickets } from "@/test/fixtures/tickets";
 
 const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
 const T0 = "2026-11-12T10:00:00.000Z";
+const spec = SpecSchema.parse(completeDraft);
 
 const saved: PersistedState = {
   version: 1,
@@ -58,6 +62,18 @@ describe("loadState", () => {
     const raw = JSON.stringify({ ...saved, projects: { [ID]: Object.fromEntries(project) } });
 
     expect(loadState(memoryStorage({ [STORAGE_KEY]: raw }))).toEqual({ kind: "ok", state: saved });
+  });
+
+  it("loads tickets saved before edits were tracked, with nothing unchecked", () => {
+    const set = { items: shelfTickets, source: spec, generatedAt: T0 };
+    const project = { ...saved.projects[ID], stage: "tickets", approved: spec, tickets: set };
+    const raw = JSON.stringify({ ...saved, projects: { [ID]: project } });
+
+    const result = loadState(memoryStorage({ [STORAGE_KEY]: raw }));
+    expect(result.kind === "ok" && result.state.projects[ID]?.tickets).toEqual({
+      ...set,
+      checked: shelfTickets,
+    });
   });
 
   it("reports nothing saved", () => {

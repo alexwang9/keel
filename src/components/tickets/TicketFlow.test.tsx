@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Workspace } from "@/components/interview/Workspace";
 import type { TicketEvent } from "@/lib/llm/tickets/events";
 import { SpecSchema, type Spec } from "@/lib/spec/schema";
-import { PersistedStateSchema, STORAGE_KEY, type Project } from "@/lib/state/schema";
+import type { z } from "zod";
+import { PersistedStateSchema, ProjectSchema, STORAGE_KEY } from "@/lib/state/schema";
 import { completeDraft } from "@/test/fixtures/spec";
 import { shelfTickets, ticket } from "@/test/fixtures/tickets";
 import { events, sseApi, type SseReply } from "@/test/msw/sse-routes";
@@ -14,7 +15,8 @@ const T0 = "2026-11-12T10:00:00.000Z";
 const spec = SpecSchema.parse(completeDraft);
 const renamed: Spec = SpecSchema.parse({ ...completeDraft, name: "Shelfie" });
 
-function store(extra: Partial<Project>) {
+// What is written to storage, before parsing fills defaults such as `tickets.checked`.
+function store(extra: Partial<z.input<typeof ProjectSchema>>) {
   const project = {
     id: ID,
     createdAt: T0,
@@ -179,6 +181,6 @@ describe("stale tickets", () => {
     await userEvent.click(screen.getByRole("button", { name: "Regenerate tickets" }));
 
     expect(api.bodies).toEqual([]);
-    expect(project()?.tickets).toEqual(old);
+    expect(project()?.tickets).toEqual({ ...old, checked: old.items });
   });
 });
