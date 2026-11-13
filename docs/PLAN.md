@@ -1,0 +1,161 @@
+# V0 Plan
+
+Each phase is one session and leaves the app running with `pnpm check` green. Status: `[ ]` todo · `[~]` in progress · `[x]` done. When a phase finishes, tick its box, add the commit hash, and log new decisions in `DECISIONS.md`.
+
+Flow being built: sign in with GitHub → chat interview → spec review/edit → approve → ticket generation → ticket review/edit → create repo + issues → dependency graph.
+
+---
+
+## [ ] Phase 0: Scaffold and tooling
+
+Set up the project skeleton so every later phase only adds features.
+
+Done when:
+
+- [ ] Next.js App Router + TS strict + Tailwind app, created with pnpm, runs with `pnpm dev`, and shows a placeholder landing page
+- [ ] ESLint (flat config) + Prettier configured; `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm check` scripts exist and pass
+- [ ] Vitest + Testing Library + MSW wired up, with one sample component test and one sample MSW-backed test
+- [ ] `src/lib/env.ts` validates env with Zod; `.env.example` lists every variable; `.gitignore` excludes `.env*` except the example
+- [ ] Directory layout from CLAUDE.md created (empty modules where needed)
+- [ ] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, arctic, iron-session checked and pinned
+- [ ] Committed
+
+## [ ] Phase 1: Spec domain core (pure, no UI)
+
+Done when:
+
+- [ ] `src/lib/spec/schema.ts`: full spec Zod schema (all template fields, stable ids on list items, explicit `none` for integrations and auth), plus a `SpecDraft` (partial) schema for mid-interview state
+- [ ] `applySpecPatch(draft, patch)`: merges a typed patch (set field, upsert or remove a list item by id); tested, including invalid patches
+- [ ] `isSpecComplete(draft)` returns `{ complete: true, spec } | { complete: false, missing: string[] }`; tested per field
+- [ ] `renderSpecMarkdown(spec)`: deterministic SPEC.md, snapshot-tested
+- [ ] `renderTranscriptMarkdown(messages)` for `docs/interview.md`; tested
+- [ ] Committed
+
+## [ ] Phase 2: Ticket domain core (pure, no UI)
+
+Done when:
+
+- [ ] `src/lib/tickets/schema.ts`: ticket schema (local id, title, description, acceptance checks, `S|M|L`, dependency ids)
+- [ ] `validateDag(tickets)` reports unknown references, self-references and cycles (with the cycle path); tested, including large and edge cases
+- [ ] `topoSort(tickets)`: stable, deterministic order; tested
+- [ ] Edit-proposal op schema + `applyProposalOps(tickets, acceptedOps)` that re-validates the DAG; tested
+- [ ] `renderIssueBody(ticket, idToIssueNumber)` / `parseIssueBody(body)` round-trip (`Depends on #N`, acceptance checklist, `<!-- keel:ticket=Tn -->` marker); tested
+- [ ] Committed
+
+## [ ] Phase 3: GitHub sign-in
+
+Done when:
+
+- [ ] OAuth App flow with `arctic`: `/api/auth/login` (state + PKCE where supported), `/api/auth/callback`, `/api/auth/logout`
+- [ ] Scope requested is exactly what DECISIONS.md says (`public_repo` unless changed)
+- [ ] Session in an `iron-session` cookie (httpOnly, secure, sameSite=lax) holding token + login; `getSession()` is `server-only`
+- [ ] Allowlist enforced (`ALLOWED_GITHUB_LOGINS`); non-allowlisted users see a friendly page and get no session
+- [ ] Protected app routes redirect to sign-in; the header shows avatar, login and sign-out
+- [ ] Tests: callback happy path, state mismatch, allowlist rejection (GitHub mocked with MSW), and an assertion that no response body or client prop contains the token
+- [ ] Committed
+
+## [ ] Phase 4: Interview backend
+
+Done when:
+
+- [ ] `src/lib/llm/config.ts` holds models, effort and max tokens per task (`claude-sonnet-5-5` for the interview); `src/lib/llm/client.ts` is the single Anthropic client factory
+- [ ] Interview system prompt + `update_spec` (strict) and `finish_interview` tool definitions generated from the Zod schemas
+- [ ] `POST /api/interview` (auth required): validates `{ history, draft }`, streams SSE events (`text`, `specPatch`, `complete`, `error`), and runs the tool loop server-side within one request
+- [ ] `finish_interview` is rejected with an error `tool_result` when `isSpecComplete` fails
+- [ ] Refusal, `max_tokens`, rate-limit and connection errors map to typed error events
+- [ ] Prompt caching set on the stable prefix
+- [ ] Tests with MSW SSE fixtures: patch applied, invalid tool input rejected, premature finish rejected, refusal path, API error path
+- [ ] Committed
+
+## [ ] Phase 5: Interview UI + client state
+
+Done when:
+
+- [ ] Versioned client state store (`keel:project:v1`) with a reducer, Zod-validated on load; corrupt state shows an export-and-reset prompt
+- [ ] Chat screen: user describes the idea; streamed assistant replies; live spec panel showing filled and missing fields and open questions
+- [ ] A refresh mid-interview restores the conversation and draft
+- [ ] When the interview completes, the UI moves to spec review
+- [ ] Error states shown with retry
+- [ ] Component tests for the chat and spec panel; reducer tests
+- [ ] Manual check: one real interview run against the live API (note the result in the commit message)
+- [ ] Committed
+
+## [ ] Phase 6: Spec review, edit and approve
+
+Done when:
+
+- [ ] Structured form editor for every spec field (add, edit and remove features, acceptance checks, entities, relationships, integrations, etc.)
+- [ ] Live validation; Approve is disabled until `isSpecComplete` passes
+- [ ] Markdown preview using `renderSpecMarkdown`
+- [ ] "Back to interview" sends an append-only message describing the edits
+- [ ] Editing an approved spec after tickets exist marks the tickets stale
+- [ ] Component tests for editing, validation and the approve gate
+- [ ] Committed
+
+## [ ] Phase 7: Ticket generation
+
+Done when:
+
+- [ ] `POST /api/tickets/generate` (auth required): Opus via structured outputs on a streamed request; progress events over SSE
+- [ ] Output Zod-parsed + `validateDag`; on failure, one repair retry with the errors, then a clear error
+- [ ] Prompt encodes the ticket rules (one user-visible behavior, ~3–8 files, 200–500 line diff, S/M/L, plain-English acceptance checks)
+- [ ] Generated tickets saved to client state; the UI moves to the ticket list
+- [ ] Tests: valid generation, cyclic output → repair → success, repair fails → error, refusal
+- [ ] Committed
+
+## [ ] Phase 8: Ticket review and edit
+
+Done when:
+
+- [ ] Ticket list in topological order: view, add, edit (all fields, dependency picker) and delete
+- [ ] DAG validation runs after every edit; errors appear inline on the affected tickets
+- [ ] Edited tickets are tracked as "unchecked"; Create is blocked while the DAG is invalid or edits are unchecked (impact check arrives in Phase 9)
+- [ ] Component + reducer tests for edit flows and validation display
+- [ ] Committed
+
+> If Phases 8 and 9 together look small after Phase 7, they may merge. Propose it at the start of Phase 8.
+
+## [ ] Phase 9: Edit-impact proposals
+
+Done when:
+
+- [ ] `POST /api/tickets/impact`: sends the spec, the current tickets and a summary of the edits; Opus returns typed proposal ops with reasons
+- [ ] Proposal review UI: accept or reject each op; the resulting DAG is previewed and validated before applying
+- [ ] Applying clears the "unchecked" state; "No changes needed" is a valid outcome
+- [ ] Nothing changes without explicit acceptance (tested)
+- [ ] Tests: proposal parse, apply subset, invalid combination blocked, API error
+- [ ] Committed
+
+## [ ] Phase 10: Create repo, commit and issues (resumable)
+
+Done when:
+
+- [ ] Repo name step with an availability check and a suggested alternative
+- [ ] `POST /api/github/create` streams per-step progress: create repo → single commit (SPEC.md, docs/interview.md, README.md) → labels → issues in topological order with real `Depends on #N`
+- [ ] Creation log persisted client-side after each step; reconcile-by-marker makes retries idempotent
+- [ ] Failure at any step shows exactly what was created and offers Resume; resume never duplicates issues (tested)
+- [ ] Tests (GitHub mocked): happy path, failure mid-issues then resume, label already exists, name collision
+- [ ] Manual check: one real run into a throwaway repo
+- [ ] Committed
+
+## [ ] Phase 11: Dependency graph view
+
+Done when:
+
+- [ ] `GET /api/github/graph?repo=owner/name` fetches issues and builds nodes and edges from `parseIssueBody`
+- [ ] React Flow + dagre top-to-bottom layout; nodes show number, title and size, and link to the issue
+- [ ] Shown automatically after creation and reachable later by repo URL; links to the repo and its issues list
+- [ ] Handles issues edited on GitHub (unknown `#N`, removed dependencies) gracefully
+- [ ] Tests: graph building from fixtures, layout is deterministic, component renders
+- [ ] Committed
+
+## [ ] Phase 12: End-to-end smoke + polish
+
+Done when:
+
+- [ ] `KEEL_FAKE_EXTERNALS=1` mode with in-process fakes, refused in production
+- [ ] Playwright smoke test covers sign in → interview → approve → tickets → create → graph
+- [ ] Empty, loading and error states reviewed on every screen
+- [ ] README: what Keel is, screenshots, setup (OAuth App, env), architecture sketch
+- [ ] Deployed to Vercel with production env; one real end-to-end run
+- [ ] Committed

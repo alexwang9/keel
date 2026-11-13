@@ -1,0 +1,96 @@
+# Decisions
+
+Format: **decision**: rationale. `[given]` = set by the project owner. `[confirmed]` = proposed during planning, confirmed by the owner on 2026-11-12. Append new decisions at the end of the relevant section with the phase that introduced them.
+
+## Product scope
+
+- **[given] Users are technical product people. This is the owner's own tool and a portfolio piece**: optimize for clarity and demo quality, not multi-tenant scale.
+- **[given] Software projects only**: the spec template and ticket rules assume software.
+- **[given] No "does this already exist?" check**: out of scope; the user brings the idea.
+- **[given] Out of scope for V0: running Claude on tickets, GitHub Actions, custom kanban, starter templates, per-ticket model routing, user-supplied API keys**: keep V0 small. Seams: model config is per task, the ticket schema has room for metadata, and the GitHub layer is a module of its own.
+- **[confirmed] Sign-in restricted to an allowlist of GitHub logins (`ALLOWED_GITHUB_LOGINS` env)**: the server spends the owner's Anthropic key, so a public deploy must not let strangers run up the bill. Non-allowlisted users see a friendly "private preview" page.
+
+## Stack
+
+- **[confirmed] Next.js App Router + TypeScript strict**: one deployable unit for UI and server routes, first-class streaming route handlers, and easy Vercel deploys.
+- **[confirmed] Vercel for deployment**: zero-config for Next.js; streaming route handlers with a raised `maxDuration` cover long Opus calls.
+- **[confirmed] pnpm, Node 24 LTS**: fast installs, strict dependency resolution, current LTS.
+- **[confirmed] Tailwind for styling**: fast to build a clean UI without a component-library dependency.
+- **[confirmed] Zod v4 for all schemas**: works with the Anthropic SDK's `zodOutputFormat` helper, so one schema drives LLM output, validation and TS types.
+- **[confirmed] `arctic` (GitHub OAuth client) + `iron-session` (encrypted, signed cookie) instead of Auth.js**: Auth.js moved to security-patch-only maintenance after joining Better Auth (Sept 2025), and v5 never left beta. Better Auth's stateless (no-DB) mode is newer and less proven. We need only one provider, no DB and full control over where the token lives, and two small maintained libraries do exactly that.
+- **[confirmed] Octokit (`@octokit/rest` + `@octokit/plugin-retry` + `@octokit/plugin-throttling`)**: the official client, typed, with built-in retry and secondary-rate-limit handling, which matters when creating many issues in a burst.
+- **[confirmed] `@xyflow/react` (React Flow) + `@dagrejs/dagre` for the graph**: React Flow handles rendering, pan and zoom; dagre gives a deterministic top-to-bottom DAG layout. Both are maintained and standard for this job.
+
+## LLM
+
+- **[given] Sonnet for the interview, Opus for ticket breakdown, model IDs in config**: interview turns must feel fast, and breakdown needs the strongest reasoning.
+- **[confirmed] Model IDs: interview `claude-sonnet-5-5`, ticket generation and edit-impact proposals `claude-opus-5-5`**: the current Sonnet and Opus, checked against current Anthropic docs (Nov 2026). Use the exact IDs with no date suffix. They live in `src/lib/llm/config.ts`, keyed by task (`interview`, `ticketGeneration`, `ticketRevision`), which is the seam for later per-ticket routing.
+- **[confirmed] Edit-impact proposals use Opus**: reasoning about dependency changes is the same kind of work as the breakdown. It's a config value, so it's cheap to switch to Sonnet if latency bothers us.
+- **[confirmed] Official `@anthropic-ai/sdk`, no wrappers (no Vercel AI SDK, no LangChain)**: fewer layers, direct access to structured outputs, streaming and typed errors.
+- **[given] The LLM fills the spec through tool use/structured output, never parsed free text.**
+- **[confirmed] Interview mechanism: streamed text reply plus an `update_spec` tool (`strict: true`) carrying a partial spec patch, plus a `finish_interview` tool**: the user sees the question stream in while the spec fills in alongside. Forced `tool_choice` (`any`/`tool`) returns a 400 on Sonnet 5.5 and Opus 5.5, so we use `tool_choice: auto`, instruct via the system prompt, and validate every tool input with Zod server-side.
+- **[confirmed] "LLM decides when complete" is enforced by the app too**: `finish_interview` is accepted only if `isSpecComplete(spec)` holds (all required fields filled, `openQuestions` empty, every feature has ≥1 acceptance check). Otherwise the server returns an error `tool_result` naming the gaps and the interview continues. The LLM decides, but the invariant is never broken.
+- **[confirmed] Ticket generation uses structured outputs (`client.messages.parse` / `output_config.format` + `zodOutputFormat`) on a streamed request**: we get schema-valid JSON for the whole ticket list with no tool loop. Streaming plus `finalMessage()` avoids HTTP timeouts on long Opus outputs. After parsing, the output also goes through DAG validation, and one automatic repair retry includes the validation errors.
+- **[confirmed] Thinking: adaptive (the default). Effort: interview `low`, ticket generation `high`, revisions `medium`, all in config**: on these models effort is the only thinking control (disabling thinking returns a 400 on Opus 5.5). Chat should be snappy, and breakdown quality matters most.
+- **[confirmed] Interview conversation is append-only**: current models bind thinking blocks to an unedited history. Edits the user makes to the spec mid-interview are sent as a new message describing the change, never by rewriting earlier turns.
+- **[confirmed] Prompt caching on the system prompt and conversation prefix**: each interview turn resends the full history, and caching cuts cost and latency.
+- **[confirmed] Handle `stop_reason: "refusal"` and `max_tokens` explicitly, and enable the server-side refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`)**: recommended default for these models. A false-positive refusal on a benign spec reroutes instead of failing.
+- **[given] V0 uses the owner's Anthropic key from env (`ANTHROPIC_API_KEY`)**: user keys are out of scope. The client is built in one factory, the seam for adding per-user keys later.
+
+## Spec
+
+- **[given] Fixed template as a Zod schema**: problem/goal, target user, core features (each with plain-English acceptance checks), out of scope, project type, data model (entities + relationships), integrations/external APIs, auth needs, deployment target, constraints/preferences, open questions.
+- **[confirmed] Lists are arrays of objects with stable `id`s (features, entities, relationships, integrations, open questions)**: patches and UI edits target items by id, so reordering and editing never mismatch.
+- **[confirmed] "None" is an explicit value for optional-in-practice fields (integrations, auth needs)**: an empty array is ambiguous (not asked yet, or not needed?). Completeness requires either items or an explicit `none: true` with a reason.
+- **[confirmed] SPEC.md is rendered deterministically from the schema (pure function, snapshot-tested), not written by the LLM**: what the user approved is exactly what gets committed.
+- **[confirmed] Spec editing is a structured form per field, not a raw Markdown editor**: keeps the spec schema-valid at all times.
+- **[confirmed] Editing the spec after tickets exist marks the tickets stale and offers regeneration (no silent changes)**: keeps spec and tickets consistent without surprising the user.
+
+## Tickets
+
+- **[given] One user-visible behavior per ticket, ~3–8 files, targeting a 200–500 line diff. Fields: title, description, acceptance checks, S/M/L, dependencies.**
+- **[confirmed] Tickets use stable local ids (`T1`, `T2`, …) before creation**: dependencies reference local ids, which map to issue numbers only at creation time.
+- **[given] Dependencies must be a valid DAG, validated after generation and after every edit**: checks for cycles, unknown ids and self-references. Errors name the offending tickets and the cycle path.
+- **[given] After a user edit, the LLM proposes updates and the user approves them. Nothing changes silently.**
+- **[confirmed] Proposals are a typed list of operations (`updateTicket`, `addDependency`, `removeDependency`, `addTicket`, `deleteTicket`), each with a reason, accepted or rejected individually**: easy to review and test. Any combination of accepted ops is re-validated as a DAG before it's applied, and invalid combinations are blocked with an explanation.
+- **[confirmed] Proposals are requested on demand ("Check impact") after a batch of edits, not on every keystroke**: avoids an Opus call per character and lets the user make several edits first. Creation is blocked while edits are unchecked, so impact review can't be skipped by accident.
+- **[confirmed] Deleting a ticket that others depend on is allowed but leaves the DAG invalid until it's resolved**: the validation UI and impact proposals guide the fix. Creation is blocked while the DAG is invalid.
+
+## GitHub
+
+- **[given] GitHub OAuth, minimum scopes. The token stays server-side in an encrypted session, never sent to the client.**
+- **[confirmed] Use an OAuth App (not a GitHub App)**: a GitHub App's user token can create a repo, but the app then has to be installed on it to write issues, which adds friction for no V0 benefit.
+- **[confirmed] Scope: `public_repo` only. Keel creates public repos**: `public_repo` is the minimum that allows creating a repo, committing files, and creating labels and issues. Private repos need `repo`, which grants read/write to all of the user's private code, a big ask for a portfolio tool. If you want private repos, we switch to `repo`, a one-line change plus re-consent.
+- **[confirmed] No GitHub Project board in V0, just link to the issues list**: Projects v2 needs the extra `project` scope and a GraphQL integration, and our own graph view already covers visualization. A board fits naturally alongside the later kanban work.
+- **[given] Repo is created in the user's own account (`POST /user/repos`).**
+- **[confirmed] Initial commit via the Git Data API (tree + commit + ref update) containing `SPEC.md`, `docs/interview.md` and a minimal `README.md`**: one clean commit instead of three contents-API commits. The repo is created with `auto_init: true` so a base ref exists.
+- **[given] Issues are created in topological order, so bodies contain real `Depends on #X` lines. Labels: `size:S|M|L`, `status:backlog`.**
+- **[confirmed] Issue body format is fixed and machine-parseable**: description, `## Acceptance checks` checklist, one `Depends on #N` line per dependency, and a hidden marker `<!-- keel:ticket=T3 -->`. Rendering and parsing are pure functions, round-trip tested. Changing it later breaks parsing of existing repos.
+- **[confirmed] Labels are created idempotently before issues (create, treat 422 "already exists" as success)**.
+- **[confirmed] Creation is resumable and idempotent, with no DB**: the client keeps a creation log in localStorage (repo full name, ticket id → issue number). A server "reconcile" step lists the repo's issues and maps existing ones by their `keel:ticket` marker, so a retry skips what already exists and continues in topological order. The UI shows per-step status (repo, commit, labels, each issue) and a "Resume" button on failure.
+- **[confirmed] Repo name collision is caught before creation**: we check name availability up front and suggest an alternative. If the repo exists and contains a Keel SPEC.md marker, we offer to resume into it; otherwise we refuse.
+- **[confirmed] Issue creation runs sequentially with Octokit throttling and retry**: topological order needs earlier issue numbers, and sequential writes stay under GitHub's secondary rate limits.
+- **[given] Dependency graph is read-only, built from the created issues by parsing `Depends on #X`.**
+- **[confirmed] Graph loads the repo's issues labelled `status:backlog` plus any carrying the Keel marker, and can be reopened later from a repo URL**: GitHub is the source of truth, so the graph reflects later edits made on GitHub.
+
+## State & persistence
+
+- **[given] No database. Interview state is client-side until the repo is created.**
+- **[confirmed] Client state is one versioned, Zod-validated object in localStorage (`keel:project:v1`), managed by a small reducer**: it survives a refresh, and the version field allows migrations. A corrupt or old state is reported, never silently dropped (export JSON first, then reset).
+- **[confirmed] One project in progress at a time in V0**: keeps the state shape and UI simple. The state object is keyed so multiple projects can be added later.
+- **[confirmed] The server is stateless: each request carries what it needs (history, spec, tickets), and every body is Zod-validated with size limits**: no DB, and the client is never trusted.
+
+## Streaming & errors
+
+- **[confirmed] Stream interview replies (text deltas + spec-patch events) over a route handler using SSE-formatted `ReadableStream`**: perceived speed matters most in chat. Spec updates show up live.
+- **[confirmed] Ticket generation streams progress events (started, thinking, N tickets parsed, validated) rather than token text**: the user sees progress during a long Opus call without reading raw JSON.
+- **[confirmed] Errors are a typed union per module, mapped to friendly UI copy, with details in server logs (request ids included)**: follows the error-handling rule. Anthropic errors are caught most-specific-first (rate limit, overloaded, bad request, connection). Retryable ones get a "Try again" action.
+
+## Testing & tooling
+
+- **[confirmed] Vitest + Testing Library for unit and component tests**: fast and ESM-native, and works with Next.
+- **[confirmed] MSW mocks GitHub and Anthropic at the HTTP layer**: both SDKs use `fetch`, so tests exercise our real SDK calls against recorded-shape fixtures. Anthropic streaming is mocked with SSE fixtures.
+- **[confirmed] One Playwright smoke test of the full happy path in the last phase, running with `KEEL_FAKE_EXTERNALS=1`** (server uses in-process fakes for Anthropic, GitHub and OAuth): proves the flow works end to end without real accounts. The flag is rejected when `NODE_ENV=production`.
+- **[confirmed] ESLint (flat config, `eslint-config-next`, `typescript-eslint` strict) + Prettier; `pnpm check` = lint + typecheck + test**: one command gates every commit.
+- **[confirmed] No CI workflow for Keel's own repo in V0**: the "no GitHub Actions" rule is about generated repos, but we keep it simple and run `pnpm check` locally. Easy to add later.
+- **[confirmed] Env validated once with Zod at startup (`src/lib/env.ts`), with `.env.example` committed**: fail fast on misconfiguration and keep secrets out of code.
