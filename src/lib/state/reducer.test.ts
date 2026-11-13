@@ -43,6 +43,7 @@ describe("workspaceReducer", () => {
       history: [{ role: "user", content: "A book club app." }],
       draft: {},
       spec: null,
+      approved: null,
     });
     expect(state.transient.status).toBe("streaming");
     expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
@@ -147,6 +148,86 @@ describe("workspaceReducer", () => {
     expect(state.transient.status).toBe("idle");
     expect(awaitingReply(project(state))).toBe(false);
     expect(PersistedStateSchema.safeParse(state.persisted).success).toBe(true);
+  });
+
+  describe("spec review", () => {
+    const spec = SpecSchema.parse(completeDraft);
+    const T2 = "2026-11-12T10:02:00.000Z";
+    const inReview = (): WorkspaceState =>
+      run(
+        started,
+        { type: "specPatch", draft: completeDraft },
+        { type: "turn", now: T1, messages: [assistant("Done.")] },
+        { type: "complete", now: T1, spec },
+      );
+    const renamed = { ...completeDraft, name: "Shelfie" };
+
+    it("stores an edited draft and keeps the interview's spec as the baseline", () => {
+      const state = workspaceReducer(inReview(), { type: "editDraft", now: T2, draft: renamed });
+
+      expect(project(state)).toMatchObject({
+        stage: "review",
+        draft: renamed,
+        spec,
+        updatedAt: T2,
+      });
+    });
+
+    it("approves only a complete draft", () => {
+      const incomplete = workspaceReducer(inReview(), {
+        type: "editDraft",
+        now: T2,
+        draft: { ...completeDraft, features: [] },
+      });
+      expect(workspaceReducer(incomplete, { type: "approve", now: T2 })).toBe(incomplete);
+
+      const approved = workspaceReducer(inReview(), { type: "approve", now: T2 });
+      expect(project(approved)).toMatchObject({ stage: "approved", approved: spec });
+      expect(PersistedStateSchema.safeParse(approved.persisted).success).toBe(true);
+    });
+
+    it("reopens review when an approved spec is edited, keeping the last approval", () => {
+      const approved = workspaceReducer(inReview(), { type: "approve", now: T2 });
+
+      const reopened = workspaceReducer(approved, { type: "reopen", now: T2 });
+      expect(project(reopened)).toMatchObject({ stage: "review", approved: spec });
+
+      const edited = workspaceReducer(approved, { type: "editDraft", now: T2, draft: renamed });
+      expect(project(edited)).toMatchObject({ stage: "review", draft: renamed, approved: spec });
+
+      const reapproved = workspaceReducer(edited, { type: "approve", now: T2 });
+      expect(project(reapproved).approved?.name).toBe("Shelfie");
+    });
+
+    it("goes back to the interview with exactly one appended message", () => {
+      const before = project(inReview()).history;
+      const state = workspaceReducer(inReview(), {
+        type: "backToInterview",
+        now: T2,
+        text: "I renamed it.",
+      });
+
+      expect(project(state).stage).toBe("interview");
+      expect(project(state).history).toEqual([
+        ...before,
+        { role: "user", content: "I renamed it." },
+      ]);
+      expect(state.transient.status).toBe("streaming");
+      expect(awaitingReply(project(state))).toBe(true);
+    });
+
+    it("ignores review actions during the interview", () => {
+      const interviewing = run(started, { type: "finished" });
+      const actions: WorkspaceAction[] = [
+        { type: "editDraft", now: T2, draft: renamed },
+        { type: "approve", now: T2 },
+        { type: "reopen", now: T2 },
+        { type: "backToInterview", now: T2, text: "x" },
+      ];
+      for (const action of actions) {
+        expect(workspaceReducer(interviewing, action)).toBe(interviewing);
+      }
+    });
   });
 
   it("ignores project actions when there is no project", () => {

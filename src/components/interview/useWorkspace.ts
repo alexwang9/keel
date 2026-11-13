@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { sendTurn, type TurnEvent } from "@/lib/llm/interview/client";
+import { HISTORY_LIMITS } from "@/lib/llm/interview/history";
+import { err, ok, type Result } from "@/lib/result";
+import { describeSpecEdits, editMessage } from "@/lib/spec/edits";
+import { applySpecPatch } from "@/lib/spec/patch";
+import type { SpecOp } from "@/lib/spec/schema";
 import {
   currentProject,
   initialWorkspace,
@@ -19,6 +24,11 @@ export interface Workspace {
   send: (text: string) => void;
   retry: () => void;
   reset: () => void;
+  // Applies a form edit to the draft; errors leave it unchanged.
+  editSpec: (ops: SpecOp[]) => Result<void, string[]>;
+  approve: () => void;
+  reopen: () => void;
+  backToInterview: (note: string) => Result<void, string>;
 }
 
 const now = (): string => new Date().toISOString();
@@ -110,5 +120,49 @@ export function useWorkspace(
     apply({ type: "reset" });
   }, [apply]);
 
-  return { state, project: currentProject(state.persisted), saveProblem, send, retry, reset };
+  const editSpec = useCallback(
+    (ops: SpecOp[]): Result<void, string[]> => {
+      const project = currentProject(stateRef.current.persisted);
+      if (!project) return err(["there is no project to edit"]);
+      const result = applySpecPatch(project.draft, ops);
+      if (!result.ok) return result;
+      apply({ type: "editDraft", now: now(), draft: result.value });
+      return ok(undefined);
+    },
+    [apply],
+  );
+
+  const approve = useCallback(() => apply({ type: "approve", now: now() }), [apply]);
+  const reopen = useCallback(() => apply({ type: "reopen", now: now() }), [apply]);
+
+  const backToInterview = useCallback(
+    (note: string): Result<void, string> => {
+      const project = currentProject(stateRef.current.persisted);
+      if (!project || stateRef.current.transient.status === "streaming") {
+        return err("The interview can't be resumed right now.");
+      }
+      const text = editMessage(note, describeSpecEdits(project.spec ?? {}, project.draft));
+      if (text === "") return err("Add a note for the interviewer, or edit the spec first.");
+      if (text.length > HISTORY_LIMITS.text) {
+        return err("These edits are too long to send in one message. Shorten the note.");
+      }
+      const next = currentProject(apply({ type: "backToInterview", now: now(), text }).persisted);
+      if (next) void runTurn(next);
+      return ok(undefined);
+    },
+    [apply, runTurn],
+  );
+
+  return {
+    state,
+    project: currentProject(state.persisted),
+    saveProblem,
+    send,
+    retry,
+    reset,
+    editSpec,
+    approve,
+    reopen,
+    backToInterview,
+  };
 }

@@ -86,17 +86,22 @@ Carried from Phase 4 and done: the billing failure now has its own `billing` cop
 
 Carried to Phase 12: the UI works but looks rough. Give every screen a visual design pass alongside the empty, loading and error state review.
 
-## [ ] Phase 6: Spec review, edit and approve
+## [x] Phase 6: Spec review, edit and approve (`4eb35cd`, `5d0380f`)
+
+Split into 6a and 6b on one branch (Rule 3: ~1,700 and ~930 inserted lines, tests included; the owner chose a single PR).
 
 Done when:
 
-- [ ] Structured form editor for every spec field (add, edit and remove features, acceptance checks, entities, relationships, integrations, etc.)
-- [ ] Live validation; Approve is disabled until `isSpecComplete` passes
-- [ ] Markdown preview using `renderSpecMarkdown`
-- [ ] "Back to interview" sends an append-only message describing the edits
-- [ ] Editing an approved spec after tickets exist marks the tickets stale
-- [ ] Component tests for editing, validation and the approve gate
-- [ ] Committed
+- [x] Structured form editor for every spec field (add, edit and remove features, acceptance checks, entities, relationships, integrations, etc.)
+- [x] Live validation; Approve is disabled until `isSpecComplete` passes
+- [x] Markdown preview using `renderSpecMarkdown`
+- [x] "Back to interview" sends an append-only message describing the edits
+- [x] Editing an approved spec reopens review and needs re-approval; the last approval is kept as `approved`. The visible "tickets are stale" part moved to Phase 7, since no tickets exist yet
+- [x] Component tests for editing, validation and the approve gate
+- [x] Manual check: owner ran an interview through review, editing and approval against the live API (6a)
+- [x] Committed
+
+Carried to Phase 12: the chat shows the model's Markdown raw (e.g. `**Name:**`); render it, or tell the model to write plain text.
 
 ## [ ] Phase 7: Ticket generation
 
@@ -106,6 +111,7 @@ Done when:
 - [ ] Output Zod-parsed + `validateDag`; on failure, one repair retry with the errors, then a clear error
 - [ ] Prompt encodes the ticket rules (one user-visible behavior, ~3–8 files, 200–500 line diff, S/M/L, plain-English acceptance checks)
 - [ ] Generated tickets saved to client state; the UI moves to the ticket list
+- [ ] Tickets record the approved spec they came from; when `approved` differs, they show as stale with a "Regenerate" offer (moved from Phase 6)
 - [ ] Tests: valid generation, cyclic output → repair → success, repair fails → error, refusal
 - [ ] Committed
 

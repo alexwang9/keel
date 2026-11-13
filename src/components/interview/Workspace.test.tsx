@@ -166,7 +166,7 @@ describe("Workspace", () => {
     await say("Let's finish");
 
     const review = await screen.findByRole("region", { name: "Spec review" });
-    expect(review).toHaveTextContent("# Shelf");
+    expect(within(review).getByRole("region", { name: "Name" })).toHaveTextContent("Shelf");
     expect(screen.queryByRole("textbox", { name: "Message" })).not.toBeInTheDocument();
     expect(Object.values(stored().projects)[0]).toMatchObject({ stage: "review" });
   });
@@ -180,7 +180,78 @@ describe("Workspace", () => {
 
     render(<Workspace />);
 
-    expect(screen.getByRole("region", { name: "Spec review" })).toHaveTextContent("# Shelf");
+    expect(screen.getByRole("region", { name: "Spec review" })).toHaveTextContent("Shelf");
+  });
+
+  describe("spec review", () => {
+    const spec = SpecSchema.parse(completeDraft);
+    const history: HistoryMessage[] = [{ role: "user", content: "hi" }, assistant("Done.")];
+    const inReview = () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        saved(history, { stage: "review", spec, draft: completeDraft }),
+      );
+      render(<Workspace />);
+    };
+    const project = () => Object.values(stored().projects)[0];
+
+    it("saves an edit, approves, and reopens review from the approved spec", async () => {
+      inReview();
+      await userEvent.click(screen.getByRole("button", { name: "Edit Name" }));
+      const name = screen.getByRole("textbox", { name: "Name" });
+      await userEvent.clear(name);
+      await userEvent.type(name, "Shelfie");
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(project()).toMatchObject({ draft: { name: "Shelfie" }, spec: { name: "Shelf" } });
+
+      await userEvent.click(screen.getByRole("button", { name: "Approve spec" }));
+      const approved = screen.getByRole("region", { name: "Approved spec" });
+      expect(approved).toHaveTextContent("# Shelfie");
+      expect(project()).toMatchObject({ stage: "approved", approved: { name: "Shelfie" } });
+
+      await userEvent.click(screen.getByRole("button", { name: "Edit spec" }));
+      expect(screen.getByRole("region", { name: "Spec review" })).toBeInTheDocument();
+      expect(project()).toMatchObject({ stage: "review", approved: { name: "Shelfie" } });
+    });
+
+    it("goes back to the interview with one message describing the edits", async () => {
+      const api = interviewApi([events({ type: "turn", messages: [assistant("Got it.")] })]);
+      inReview();
+      await userEvent.click(screen.getByRole("button", { name: "Edit Name" }));
+      const name = screen.getByRole("textbox", { name: "Name" });
+      await userEvent.clear(name);
+      await userEvent.type(name, "Shelfie");
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Back to interview" }));
+      await userEvent.type(
+        screen.getByRole("textbox", { name: "Note for the interviewer (optional)" }),
+        "Please add voting deadlines.",
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Send and resume" }));
+
+      expect(await screen.findByText("Got it.")).toBeInTheDocument();
+      const sent = {
+        role: "user",
+        content:
+          "Please add voting deadlines.\n\nI edited the spec in the form. These changes are already applied:\n- Changed the name to: Shelfie",
+      };
+      expect(api.bodies).toEqual([
+        { history: [...history, sent], draft: { ...completeDraft, name: "Shelfie" } },
+      ]);
+      expect(project()).toMatchObject({ stage: "interview" });
+      expect(storedHistory()).toEqual([...history, sent, assistant("Got it.")]);
+    });
+
+    it("won't go back to the interview with nothing to say", async () => {
+      inReview();
+      await userEvent.click(screen.getByRole("button", { name: "Back to interview" }));
+      await userEvent.click(screen.getByRole("button", { name: "Send and resume" }));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("Add a note for the interviewer");
+      expect(storedHistory()).toEqual(history);
+    });
   });
 
   it("starts over after confirmation", async () => {

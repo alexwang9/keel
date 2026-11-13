@@ -4,7 +4,7 @@ import type { DataModel, Feature, ProjectType, Spec } from "@/lib/spec/schema";
 /** First line of every SPEC.md Keel writes. Lets a later run recognise a Keel repo to resume into. */
 export const SPEC_MARKER = "<!-- keel:spec v1 -->";
 
-const PROJECT_KIND_LABELS: Record<ProjectType["kind"], string> = {
+export const PROJECT_KIND_LABELS: Record<ProjectType["kind"], string> = {
   "web-app": "Web app",
   "mobile-app": "Mobile app",
   cli: "CLI",
