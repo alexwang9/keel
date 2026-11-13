@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { findMissing } from "@/lib/spec/missing";
+import { boundedText, prefixedId, reportDuplicates } from "@/lib/validation";
 
 export const LIMITS = {
   shortText: 200,
@@ -10,15 +11,8 @@ export const LIMITS = {
   transcriptTurns: 400,
 } as const;
 
-const text = (max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1, "must not be empty")
-    .max(max, `must be at most ${String(max)} characters`);
-
-const shortText = text(LIMITS.shortText);
-const longText = text(LIMITS.longText);
+const shortText = boundedText(LIMITS.shortText);
+const longText = boundedText(LIMITS.longText);
 const textList = (max: number) =>
   z.array(longText).max(max, `must have at most ${String(max)} items`);
 
@@ -33,27 +27,18 @@ export const ID_PREFIX = {
 
 export type ListName = keyof typeof ID_PREFIX;
 
-const idOf = (prefix: string) =>
-  z
-    .string()
-    .regex(new RegExp(`^${prefix}[1-9]\\d{0,3}$`), `must look like ${prefix}1, ${prefix}2, …`);
+const idOf = prefixedId;
 
 const idList = <T extends z.ZodType<{ id: string }>>(item: T) =>
   z
     .array(item)
     .max(LIMITS.listItems, `must have at most ${String(LIMITS.listItems)} items`)
     .superRefine((items, ctx) => {
-      const seen = new Set<string>();
-      items.forEach((entry, index) => {
-        if (seen.has(entry.id)) {
-          ctx.addIssue({
-            code: "custom",
-            path: [index, "id"],
-            message: `duplicates id ${entry.id}`,
-          });
-        }
-        seen.add(entry.id);
-      });
+      reportDuplicates(
+        items.map((entry) => entry.id),
+        ctx,
+        (id, index) => ({ path: [index, "id"], message: `duplicates id ${id}` }),
+      );
     });
 
 export const FeatureSchema = z.object({
