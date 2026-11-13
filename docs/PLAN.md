@@ -20,16 +20,16 @@ Done when:
 - [x] Current versions of Next.js, `@anthropic-ai/sdk`, Octokit, Zod, iron-session checked and pinned (`arctic` turned out to be deprecated on npm and was replaced by `@octokit/oauth-methods`, see DECISIONS.md)
 - [x] Committed
 
-## [ ] Phase 1: Spec domain core (pure, no UI)
+## [x] Phase 1: Spec domain core (pure, no UI) (`14f91bb`, `4be86c2`)
 
 Done when:
 
-- [ ] `src/lib/spec/schema.ts`: full spec Zod schema (all template fields, stable ids on list items, explicit `none` for integrations and auth), plus a `SpecDraft` (partial) schema for mid-interview state
-- [ ] `applySpecPatch(draft, patch)`: merges a typed patch (set field, upsert or remove a list item by id); tested, including invalid patches
-- [ ] `isSpecComplete(draft)` returns `{ complete: true, spec } | { complete: false, missing: string[] }`; tested per field
-- [ ] `renderSpecMarkdown(spec)`: deterministic SPEC.md, snapshot-tested
-- [ ] `renderTranscriptMarkdown(messages)` for `docs/interview.md`; tested
-- [ ] Committed
+- [x] `src/lib/spec/schema.ts`: full spec Zod schema (all template fields, stable ids on list items, explicit `none` for integrations and auth), plus a `SpecDraft` (partial) schema for mid-interview state
+- [x] `applySpecPatch(draft, patch)`: merges a typed patch (set field, upsert or remove a list item by id); tested, including invalid patches
+- [x] `isSpecComplete(draft)` returns `{ complete: true, spec } | { complete: false, missing: string[] }`; tested per field
+- [x] `renderSpecMarkdown(spec)`: deterministic SPEC.md, snapshot-tested
+- [x] `renderTranscriptMarkdown(messages)` for `docs/interview.md`; tested
+- [x] Committed
 
 ## [ ] Phase 2: Ticket domain core (pure, no UI)
 

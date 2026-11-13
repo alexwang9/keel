@@ -15,6 +15,13 @@ export default defineConfig({
   },
   test: {
     setupFiles: ["./src/test/setup.ts"],
+    // Run with `pnpm test:coverage`. Deliberately no thresholds: gaps are reviewed, not gated.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/test/**"],
+      reporter: ["text", "html"],
+    },
     projects: [
       {
         extends: true,
