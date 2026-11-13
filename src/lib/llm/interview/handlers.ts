@@ -1,12 +1,10 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { isSpecComplete } from "@/lib/spec/complete";
 import { findMissing } from "@/lib/spec/missing";
 import { applySpecPatch } from "@/lib/spec/patch";
 import type { Spec, SpecDraft, SpecOp } from "@/lib/spec/schema";
+import type { ToolResult } from "@/lib/llm/interview/history";
 import { FINISH_INTERVIEW, UPDATE_SPEC, UpdateSpecInputSchema } from "@/lib/llm/interview/tools";
 import { formatIssues } from "@/lib/validation";
-
-type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
 
 /** What running one tool call did: the reply to the model, and any change the client must see. */
 export type ToolOutcome =

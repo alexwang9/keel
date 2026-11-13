@@ -81,6 +81,7 @@ export const HistorySchema = z
   .refine((history) => history.at(-1)?.role === "user", "must end with a user message");
 
 export type HistoryMessage = z.infer<typeof HistoryMessageSchema>;
+export type ToolResult = z.infer<typeof ToolResultBlock>;
 export type AssistantContent = z.infer<typeof AssistantMessage>["content"];
 type AssistantBlock = AssistantContent[number];
 

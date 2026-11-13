@@ -12,32 +12,39 @@ export const FinishInterviewInputSchema = z.object({});
 
 type InputSchema = Anthropic.Beta.BetaTool["input_schema"];
 
+/** The plain JSON Schema, with its length, pattern and size limits, for a non-strict tool. */
+function looseSchemaFrom(schema: z.ZodType): InputSchema {
+  const json = z.toJSONSchema(schema, { io: "input", reused: "ref" });
+  delete json.$schema;
+  return { ...json, type: "object" };
+}
+
 /**
- * Strict tool schemas from the Zod schemas. The SDK's transform rewrites what strict mode can't
- * compile (`oneOf` → `anyOf`, length and pattern limits moved into descriptions) and closes every
- * object. Those limits and the cross-item rules are still enforced by `applySpecPatch`.
+ * A schema strict mode can compile. The SDK's transform turns `oneOf` into `anyOf`, moves length
+ * and pattern limits into descriptions and closes every object.
  */
-function inputSchemaFrom(schema: z.ZodType): InputSchema {
+function strictSchemaFrom(schema: z.ZodType): InputSchema {
   const json = transformJSONSchema(z.toJSONSchema(schema, { io: "input", reused: "ref" }));
   return { ...json, type: "object" };
 }
 
 export const interviewTools: Anthropic.Beta.BetaTool[] = [
   {
+    // Not strict: the API rejects the compiled grammar for the full patch union as too large.
+    // `applySpecPatch` validates every input, and invalid ones come back as an error result.
     name: UPDATE_SPEC,
     description:
       "Record what the user has told you in the spec draft. Send an ordered list of ops: `set` " +
       "replaces a whole field, `upsert` adds or replaces a list item by id, `remove` deletes one. " +
       "Ops apply all-or-nothing; if any op is invalid, nothing changes and the errors come back.",
-    input_schema: inputSchemaFrom(UpdateSpecInputSchema),
-    strict: true,
+    input_schema: looseSchemaFrom(UpdateSpecInputSchema),
   },
   {
     name: FINISH_INTERVIEW,
     description:
       "Call when every spec field is answered, every feature has at least one acceptance check " +
       "and no open questions remain. Rejected with the remaining gaps if the spec is incomplete.",
-    input_schema: inputSchemaFrom(FinishInterviewInputSchema),
+    input_schema: strictSchemaFrom(FinishInterviewInputSchema),
     strict: true,
   },
 ];
