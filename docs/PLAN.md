@@ -103,7 +103,7 @@ Done when:
 
 Carried to Phase 12: the chat shows the model's Markdown raw (e.g. `**Name:**`); render it, or tell the model to write plain text.
 
-## [~] Phase 7: Ticket generation (`6724814`, `03ef8d3`)
+## [x] Phase 7: Ticket generation (`6724814`, `03ef8d3`)
 
 Split into 7a (backend) and 7b (client state and UI) on one branch (Rule 3; the owner chose one PR, as for Phase 6).
 
@@ -115,8 +115,10 @@ Done when:
 - [x] Generated tickets saved to client state; the UI moves to the ticket list
 - [x] Tickets record the approved spec they came from; when `approved` differs, they show as stale with a "Regenerate" offer (moved from Phase 6)
 - [x] Tests: valid generation, cyclic output → repair → success, repair fails → error, refusal (plus timeout, abort, HTTP and stream errors)
-- [ ] Manual check: one real generation against the live API (owner), confirming the API accepts the output grammar and a realistic spec finishes within the 280s deadline at `high` effort
+- [x] Manual check: one real generation against the live API (owner), confirming the API accepts the output grammar and a realistic spec finishes within the 280s deadline at `high` effort. The owner's run produced 7 tickets with sensible dependencies in under a minute, so effort stays `high`
 - [x] Committed
+
+Carried to Phase 12: ticket descriptions show the model's Markdown raw in the app (e.g. `**User**`), like the chat. GitHub will render it in issue bodies, so render it in the ticket list too.
 
 ## [ ] Phase 8: Ticket review and edit
 
