@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyState, STORAGE_KEY, type PersistedState } from "@/lib/state/schema";
-import { clearState, loadState, saveState } from "@/lib/state/storage";
+import { loadState, saveState } from "@/lib/state/storage";
 
 const ID = "6f1c2d3e-4b5a-4c6d-8e7f-901234567890";
 const T0 = "2026-11-12T10:00:00.000Z";
@@ -120,14 +120,5 @@ describe("saveState", () => {
       error: "unavailable",
     });
     expect(saveState(null, saved)).toEqual({ ok: false, error: "unavailable" });
-  });
-});
-
-describe("clearState", () => {
-  it("removes the saved state", () => {
-    const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify(saved) });
-
-    expect(clearState(storage).ok).toBe(true);
-    expect(loadState(storage)).toEqual({ kind: "empty" });
   });
 });

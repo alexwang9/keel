@@ -64,13 +64,3 @@ export function saveState(
     return err(isQuotaError(error) ? "quota" : "unavailable");
   }
 }
-
-export function clearState(storage: Storage | null): Result<void, SaveProblem> {
-  if (!storage) return err("unavailable");
-  try {
-    storage.removeItem(STORAGE_KEY);
-    return ok(undefined);
-  } catch {
-    return err("unavailable");
-  }
-}
