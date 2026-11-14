@@ -1,5 +1,5 @@
-import { http, HttpResponse, passthrough } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
+import { getResponse, type RequestHandler } from "msw";
+import { externalFetch, installExternalFetch } from "@/lib/external-fetch";
 import { fakeAnthropic } from "@/test/fake-externals/anthropic";
 import { fakeGitHub } from "@/test/msw/github";
 import { githubOAuth } from "@/test/msw/github-oauth";
@@ -7,37 +7,36 @@ import { githubOAuth } from "@/test/msw/github-oauth";
 /** The login the fake OAuth flow signs in as. `ALLOWED_GITHUB_LOGINS` must include it. */
 export const FAKE_LOGIN = "octocat";
 
-// A 1×1 grey PNG for the fake user's avatar, which Next's image optimizer fetches server-side.
-const AVATAR_PNG = Uint8Array.from(
-  Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==",
-    "base64",
-  ),
-);
-
-const LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//;
-
-// Survives dev-server reloads of instrumentation, so the fakes start once per process and the
-// in-memory GitHub keeps its repos.
-const globalFakes = globalThis as typeof globalThis & { keelFakeExternals?: SetupServer };
-
-/**
- * Starts in-process fakes for Anthropic, the GitHub API and GitHub's OAuth endpoints, for
- * `KEEL_FAKE_EXTERNALS=1`. The real SDKs run against them. Local requests pass through, and any
- * other request fails, so fake mode never reaches a real API.
- */
-export function startFakeExternals(): void {
-  if (globalFakes.keelFakeExternals) return;
-  const server = setupServer(
-    http.all(LOCAL, () => passthrough()),
-    http.get(
-      "https://avatars.githubusercontent.com/*",
-      () => new HttpResponse(AVATAR_PNG, { headers: { "content-type": "image/png" } }),
-    ),
+/** Handlers for every external call Keel's server makes: Anthropic, GitHub API and OAuth. */
+export function fakeHandlers(): RequestHandler[] {
+  return [
     fakeAnthropic,
     ...githubOAuth({ login: FAKE_LOGIN }).handlers,
     ...fakeGitHub(FAKE_LOGIN).handlers,
-  );
-  server.listen({ onUnhandledFrame: "error" });
-  globalFakes.keelFakeExternals = server;
+  ];
+}
+
+/**
+ * A fetch that answers from `handlers` and never touches the network: a request with no
+ * handler fails like a network error, naming the URL.
+ */
+export function createFakeFetch(handlers: RequestHandler[]): typeof fetch {
+  return async (input, init) => {
+    const request = new Request(input, init);
+    const response = await getResponse(handlers, request);
+    if (!response) {
+      throw new TypeError(`Fake externals: no fake for ${request.method} ${request.url}`);
+    }
+    return response;
+  };
+}
+
+/**
+ * Installs in-process fakes for `KEEL_FAKE_EXTERNALS=1`. Every external client (Anthropic,
+ * GitHub, OAuth) is built with this fetch, so the real SDKs run against the fakes. Once per
+ * process: the in-memory GitHub keeps its repos across dev-server recompiles.
+ */
+export function startFakeExternals(): void {
+  if (externalFetch()) return;
+  installExternalFetch(createFakeFetch(fakeHandlers()));
 }
