@@ -1,14 +1,23 @@
 import { z } from "zod";
+import { RepoRefSchema } from "@/lib/github/events";
+import { RepoNameSchema } from "@/lib/github/repo-name";
 import { HistoryMessageSchema, HISTORY_LIMITS } from "@/lib/llm/interview/history";
 import { SpecDraftSchema, SpecSchema } from "@/lib/spec/schema";
-import { TicketListSchema } from "@/lib/tickets/schema";
+import { TicketListSchema, TicketSchema } from "@/lib/tickets/schema";
 
 /** The localStorage key. The version in the key and in the object move together. */
 export const STORAGE_KEY = "keel:project:v1";
 export const STATE_VERSION = 1;
 
-/** Where a project is in the flow. Later phases add creation stages. */
-export const STAGES = ["interview", "review", "approved", "tickets"] as const;
+/** Where a project is in the flow. `creating` holds from the first create request until done. */
+export const STAGES = [
+  "interview",
+  "review",
+  "approved",
+  "tickets",
+  "creating",
+  "created",
+] as const;
 
 /**
  * Generated tickets, with the approved spec they came from so staleness can be worked out.
@@ -24,6 +33,24 @@ export const TicketSetSchema = z
     generatedAt: z.iso.datetime(),
   })
   .transform(({ checked, ...set }) => ({ ...set, checked: checked ?? set.items }));
+
+/**
+ * The creation log, saved after every step so a refresh or failure can resume. GitHub stays the
+ * source of truth: a resumed run reconciles against the repo, and this log is what the UI shows.
+ */
+export const CreationSchema = z.object({
+  repoName: RepoNameSchema,
+  // True when the user chose to continue into an existing Keel repo the name check found.
+  existing: z.boolean(),
+  // Set once the repo exists; from then on every request resumes into it.
+  repo: RepoRefSchema.nullable(),
+  committed: z.boolean(),
+  labelled: z.boolean(),
+  // Ticket id → issue number.
+  issues: z.record(TicketSchema.shape.id, z.int().positive()),
+  startedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().nullable(),
+});
 
 export const ProjectSchema = z.object({
   id: z.uuid(),
@@ -42,6 +69,8 @@ export const ProjectSchema = z.object({
   approved: SpecSchema.nullable().default(null),
   // Defaulted so states saved before Phase 7 still load.
   tickets: TicketSetSchema.nullable().default(null),
+  // Defaulted so states saved before Phase 10 still load.
+  creation: CreationSchema.nullable().default(null),
 });
 
 /**
@@ -66,6 +95,7 @@ export const PersistedStateSchema = z
 export type Stage = (typeof STAGES)[number];
 export type Project = z.infer<typeof ProjectSchema>;
 export type TicketSet = z.infer<typeof TicketSetSchema>;
+export type Creation = z.infer<typeof CreationSchema>;
 export type PersistedState = z.infer<typeof PersistedStateSchema>;
 
 export const emptyState = (): PersistedState => ({

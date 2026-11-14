@@ -64,6 +64,8 @@ interface TicketsScreenProps {
   onDeleteTicket: (id: string) => Result<void, string[]>;
   // Accepted impact ops for `basis`, the list the check ran on.
   onApplyImpact: (basis: Ticket[], ops: ProposalOp[]) => void;
+  // Starts repo creation under `repoName`; `existing` continues into a Keel repo.
+  onCreate: (repoName: string, existing: boolean) => void;
 }
 
 /**
@@ -119,7 +121,14 @@ export function TicketsScreen(props: TicketsScreenProps) {
           onClose={impact.close}
         />
       )}
-      <CreateGate blockers={props.blockers} />
+      <CreateGate
+        // Checks and proposals in flight count as blockers too, so a run can't start mid-change.
+        blockers={
+          running || checking || reviewing ? ["Finish the change in progress."] : props.blockers
+        }
+        projectName={approved.name}
+        onStart={props.onCreate}
+      />
       <TicketList
         tickets={tickets}
         edited={edited}

@@ -32,11 +32,11 @@ afterEach(() => {
 });
 
 describe("editing tickets", () => {
-  it("is ready to create when nothing is edited, but creation isn't available yet", () => {
+  it("is ready to create when nothing is edited", () => {
     showTickets();
 
     expect(gate()).toHaveTextContent("The tickets are ready.");
-    expect(within(gate()).getByRole("button", { name: "Create repo" })).toBeDisabled();
+    expect(within(gate()).getByRole("button", { name: "Create repo" })).toBeEnabled();
     expect(screen.queryByText("Edited")).not.toBeInTheDocument();
   });
 

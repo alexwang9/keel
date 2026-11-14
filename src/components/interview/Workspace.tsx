@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { CreationScreen } from "@/components/create/CreationScreen";
+import { useRepoCreation, type RepoCreation } from "@/components/create/useRepoCreation";
 import { ChatPanel } from "@/components/interview/ChatPanel";
 import { CorruptStatePrompt } from "@/components/interview/CorruptStatePrompt";
 import { SpecPanel } from "@/components/interview/SpecPanel";
@@ -40,8 +42,16 @@ const ticketStatus = (project: Project): TicketStatus => {
   return ticketsStale(project) ? "stale" : "current";
 };
 
-/** The screen for the project's stage: interview, spec review, the approved spec, or tickets. */
-function Stage({ workspace }: { workspace: WorkspaceApi }) {
+interface StageProps {
+  workspace: WorkspaceApi;
+  creation: RepoCreation;
+}
+
+/**
+ * The screen for the project's stage: interview, spec review, the approved spec, tickets, or
+ * repo creation.
+ */
+function Stage({ workspace, creation }: StageProps) {
   const { project, state } = workspace;
   const { transient } = state;
 
@@ -80,6 +90,22 @@ function Stage({ workspace }: { workspace: WorkspaceApi }) {
         onSaveTicket={workspace.saveTicket}
         onDeleteTicket={workspace.deleteTicket}
         onApplyImpact={workspace.applyImpact}
+        onCreate={(repoName, existing) => {
+          workspace.startCreation(repoName, existing);
+          creation.run();
+        }}
+      />
+    );
+  }
+  if ((project?.stage === "creating" || project?.stage === "created") && project.creation) {
+    return (
+      <CreationScreen
+        creation={project.creation}
+        tickets={project.tickets?.items ?? []}
+        done={project.stage === "created"}
+        run={creation.state}
+        onResume={creation.run}
+        onChangeName={workspace.abandonCreation}
       />
     );
   }
@@ -107,6 +133,10 @@ interface LoadedWorkspaceProps {
 
 function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
   const workspace = useWorkspace(initial, storage, problem);
+  const creation = useRepoCreation({
+    request: workspace.creationRequest,
+    record: workspace.recordCreation,
+  });
   const { project } = workspace;
 
   const startOver = () => {
@@ -125,7 +155,7 @@ function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
           </button>
         </div>
       )}
-      <Stage workspace={workspace} />
+      <Stage workspace={workspace} creation={creation} />
     </div>
   );
 }

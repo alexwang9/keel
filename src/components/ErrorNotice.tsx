@@ -8,17 +8,19 @@ export interface NoticeError {
 interface ErrorNoticeProps {
   error: NoticeError;
   onRetry: () => void;
+  retryLabel?: string;
 }
 
 /** Friendly copy for a failed request, with Retry when retrying can help. */
-export function ErrorNotice({ error, onRetry }: ErrorNoticeProps) {
+export function ErrorNotice({ error, onRetry, retryLabel = "Try again" }: ErrorNoticeProps) {
   return (
     <div
       role="alert"
       className="mb-2 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
     >
       <span>{error.message}</span>
-      {error.code === "signed_out" && (
+      {/* `unauthorized`: GitHub rejected the token, so a fresh sign-in gets a new one. */}
+      {(error.code === "signed_out" || error.code === "unauthorized") && (
         // A plain link: the login route redirects off-site to GitHub.
         <a href="/api/auth/login" className="font-medium underline">
           Sign in
@@ -26,7 +28,7 @@ export function ErrorNotice({ error, onRetry }: ErrorNoticeProps) {
       )}
       {error.retryable && (
         <button type="button" onClick={onRetry} className="font-medium underline">
-          Try again
+          {retryLabel}
         </button>
       )}
     </div>

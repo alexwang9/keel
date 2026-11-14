@@ -24,7 +24,7 @@ export const CreateErrorSchema = z.object({
   retryable: z.boolean(),
 });
 
-const RepoRefSchema = z.object({
+export const RepoRefSchema = z.object({
   fullName: z.string().min(1),
   htmlUrl: z.url(),
 });
