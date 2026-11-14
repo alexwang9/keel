@@ -148,17 +148,21 @@ Done when:
 - [x] Manual check: one real impact check against the live API (owner), confirming the API accepts the proposal grammar and the proposal makes sense. The owner's run passed
 - [x] Committed
 
-## [ ] Phase 10: Create repo, commit and issues (resumable)
+## [x] Phase 10: Create repo, commit and issues (resumable) (`5c4139e`, `c22aa20`)
+
+Split into 10a (backend) and 10b (client state and UI) on one branch (Rule 3), one PR as for Phases 6–9.
 
 Done when:
 
-- [ ] Repo name step with an availability check and a suggested alternative
-- [ ] `POST /api/github/create` streams per-step progress: create repo → single commit (SPEC.md, docs/interview.md, README.md) → labels → issues in topological order with real `Depends on #N`
-- [ ] Creation log persisted client-side after each step; reconcile-by-marker makes retries idempotent
-- [ ] Failure at any step shows exactly what was created and offers Resume; resume never duplicates issues (tested)
-- [ ] Tests (GitHub mocked): happy path, failure mid-issues then resume, label already exists, name collision
-- [ ] Manual check: one real run into a throwaway repo
-- [ ] Committed
+- [x] Repo name step with an availability check and a suggested alternative (and "Continue in" for a Keel repo with the same spec)
+- [x] `POST /api/github/create` streams per-step progress: create repo → single commit (SPEC.md, docs/interview.md, README.md) → labels → issues in topological order with real `Depends on #N`. Each request pauses at 270s and the client continues it
+- [x] Creation log persisted client-side after each step; reconcile-by-marker makes retries idempotent
+- [x] Failure at any step shows exactly what was created and offers Resume; resume never duplicates issues (tested)
+- [x] Tests (GitHub mocked): happy path, failure mid-issues then resume, label already exists, name collision (plus private-name collision, resume refusals, pause and continue, refresh mid-creation, expired token)
+- [x] Manual check: one real run into a throwaway repo (owner). The run created `alexwang9/keel-test` with 7 issues, and a reload partway through resumed without duplicates: one issue per ticket marker, every `Depends on #N` pointing at an earlier issue, one Keel commit and the four labels
+- [x] Committed
+
+Carried from Phase 8 and done: the Create repo button is enabled once `createBlockers` is empty.
 
 ## [ ] Phase 11: Dependency graph view
 

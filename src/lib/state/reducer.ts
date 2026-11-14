@@ -1,3 +1,4 @@
+import type { CreateEvent } from "@/lib/github/events";
 import type { TurnError } from "@/lib/llm/interview/client";
 import type { HistoryMessage } from "@/lib/llm/interview/history";
 import { isSpecComplete } from "@/lib/spec/complete";
@@ -6,6 +7,7 @@ import { topoSort, validateDag } from "@/lib/tickets/dag";
 import { uncheckedTicketIds } from "@/lib/tickets/edit";
 import { applyProposalOps } from "@/lib/tickets/proposal";
 import type { ProposalOp, Ticket } from "@/lib/tickets/schema";
+import { abandonCreation, recordProgress, startCreation } from "@/lib/state/creation";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
 
 export type TurnStatus = "idle" | "streaming" | "error";
@@ -48,6 +50,12 @@ export type WorkspaceAction =
   | { type: "editTickets"; now: string; tickets: Ticket[] }
   // The impact ops the user accepted, for `basis`: the list the check ran on. Clears "unchecked".
   | { type: "impactApplied"; now: string; basis: Ticket[]; ops: ProposalOp[] }
+  // Gated by `createBlockers`. `existing`: continue into a Keel repo the name check found.
+  | { type: "createStarted"; now: string; repoName: string; existing: boolean }
+  // One persisted step of the create stream (`repo`, `step`, `issue` or `complete`).
+  | { type: "createProgress"; now: string; event: CreateEvent }
+  // Back to the tickets, only while no repo exists yet.
+  | { type: "createAbandoned"; now: string }
   | { type: "reset" };
 
 const idleTransient = (): Transient => ({
@@ -104,6 +112,7 @@ function start(state: WorkspaceState, id: string, now: string, text: string): Wo
     spec: null,
     approved: null,
     tickets: null,
+    creation: null,
   };
   // V0 keeps one project: starting a new one replaces whatever was stored.
   return {
@@ -227,6 +236,29 @@ export function createBlockers(project: Project): string[] {
   ];
 }
 
+/** Applies a creation change from `creation.ts`; a refused change leaves the state as it was. */
+function changeCreation(
+  state: WorkspaceState,
+  now: string,
+  change: (project: Project) => Partial<Project> | null,
+): WorkspaceState {
+  const project = currentProject(state.persisted);
+  const changed = project ? change(project) : null;
+  return changed ? updateProject(state, now, () => changed) : state;
+}
+
+function createStarted(
+  state: WorkspaceState,
+  now: string,
+  repoName: string,
+  existing: boolean,
+): WorkspaceState {
+  const project = currentProject(state.persisted);
+  // Gated here too, not just by the disabled button.
+  if (!project || createBlockers(project).length > 0) return state;
+  return changeCreation(state, now, (p) => startCreation(p, now, repoName, existing));
+}
+
 /** Pure state transitions for the workspace. Ids and timestamps come in on the action. */
 export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
@@ -277,6 +309,12 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       return editTickets(state, action.now, action.tickets);
     case "impactApplied":
       return impactApplied(state, action.now, action.basis, action.ops);
+    case "createStarted":
+      return createStarted(state, action.now, action.repoName, action.existing);
+    case "createProgress":
+      return changeCreation(state, action.now, (p) => recordProgress(p, action.now, action.event));
+    case "createAbandoned":
+      return changeCreation(state, action.now, abandonCreation);
     case "reset":
       return initialWorkspace(emptyState());
   }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import type { CreateEvent } from "@/lib/github/events";
+import type { CreateRequest } from "@/lib/github/request";
 import { sendTurn, type TurnEvent } from "@/lib/llm/interview/client";
 import { HISTORY_LIMITS } from "@/lib/llm/interview/history";
 import { err, ok, type Result } from "@/lib/result";
@@ -14,6 +16,7 @@ import {
   type WorkspaceAction,
   type WorkspaceState,
 } from "@/lib/state/reducer";
+import { creationRequest } from "@/lib/state/creation";
 import type { PersistedState, Project } from "@/lib/state/schema";
 import { saveState, type SaveProblem } from "@/lib/state/storage";
 import { deleteTicket, saveTicket } from "@/lib/tickets/edit";
@@ -38,6 +41,12 @@ export interface Workspace {
   deleteTicket: (id: string) => Result<void, string[]>;
   // Accepted impact ops; refused unless they apply cleanly to `basis`, the current list.
   applyImpact: (basis: Ticket[], ops: ProposalOp[]) => void;
+  // Repo creation: start the log, record a step, or drop a log that never got a repo.
+  startCreation: (repoName: string, existing: boolean) => void;
+  recordCreation: (event: CreateEvent) => void;
+  abandonCreation: () => void;
+  // The next create request, built from the latest state (it changes between requests).
+  creationRequest: () => CreateRequest | null;
 }
 
 const now = (): string => new Date().toISOString();
@@ -195,6 +204,24 @@ export function useWorkspace(
     [apply],
   );
 
+  const startCreation = useCallback(
+    (repoName: string, existing: boolean) =>
+      apply({ type: "createStarted", now: now(), repoName, existing }),
+    [apply],
+  );
+  const recordCreation = useCallback(
+    (event: CreateEvent) => apply({ type: "createProgress", now: now(), event }),
+    [apply],
+  );
+  const abandonCreation = useCallback(
+    () => apply({ type: "createAbandoned", now: now() }),
+    [apply],
+  );
+  const nextCreationRequest = useCallback((): CreateRequest | null => {
+    const project = currentProject(stateRef.current.persisted);
+    return project ? creationRequest(project) : null;
+  }, []);
+
   return {
     state,
     project: currentProject(state.persisted),
@@ -211,5 +238,9 @@ export function useWorkspace(
     saveTicket: saveTicketEdit,
     deleteTicket: deleteTicketEdit,
     applyImpact,
+    startCreation,
+    recordCreation,
+    abandonCreation,
+    creationRequest: nextCreationRequest,
   };
 }

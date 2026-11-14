@@ -23,6 +23,7 @@ const saved: PersistedState = {
       spec: null,
       approved: null,
       tickets: null,
+      creation: null,
     },
   },
 };

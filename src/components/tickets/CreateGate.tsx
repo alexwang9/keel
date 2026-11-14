@@ -1,16 +1,26 @@
+"use client";
+
+import { useState } from "react";
+import { RepoNameStep } from "@/components/create/RepoNameStep";
 import { primaryButtonClass } from "@/components/review/inputs";
 
-/**
- * The Create repo button and what's blocking it. Repo creation arrives in Phase 10, so for now the
- * button stays disabled even when nothing blocks it.
- */
-export function CreateGate({ blockers }: { blockers: readonly string[] }) {
+interface CreateGateProps {
+  blockers: readonly string[];
+  projectName: string;
+  onStart: (repoName: string, existing: boolean) => void;
+}
+
+/** The Create repo button and what's blocking it; with nothing blocking, it opens the name step. */
+export function CreateGate({ blockers, projectName, onStart }: CreateGateProps) {
+  const [naming, setNaming] = useState(false);
+  const blocked = blockers.length > 0;
+
   return (
     <section
       aria-label="Create repo"
       className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-4 text-sm dark:border-zinc-800"
     >
-      {blockers.length > 0 ? (
+      {blocked ? (
         <>
           <p className="font-medium">Before creating the repo:</p>
           <ul className="list-disc pl-5">
@@ -20,13 +30,30 @@ export function CreateGate({ blockers }: { blockers: readonly string[] }) {
           </ul>
         </>
       ) : (
-        <p>The tickets are ready. Repo creation isn&apos;t available yet.</p>
+        !naming && <p>The tickets are ready.</p>
       )}
-      <div>
-        <button type="button" disabled className={primaryButtonClass}>
-          Create repo
-        </button>
-      </div>
+      {naming && !blocked ? (
+        <RepoNameStep
+          projectName={projectName}
+          onStart={onStart}
+          onCancel={() => {
+            setNaming(false);
+          }}
+        />
+      ) : (
+        <div>
+          <button
+            type="button"
+            disabled={blocked}
+            onClick={() => {
+              setNaming(true);
+            }}
+            className={primaryButtonClass}
+          >
+            Create repo
+          </button>
+        </div>
+      )}
     </section>
   );
 }
