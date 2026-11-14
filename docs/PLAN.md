@@ -177,7 +177,9 @@ Done when:
 - [x] Tests: graph building from fixtures, layout is deterministic, component renders (plus the route against `fakeGitHub`, repo URL parsing, the form, and loading, empty and error states)
 - [x] Committed
 
-Carried to Phase 12: jsdom can't lay out React Flow edges, so edges are tested through `toFlow`, not the DOM. The Playwright smoke test should assert that the graph draws its arrows in a real browser.
+Checked in a real browser (owner): `alexwang9/keel-test` drew all 7 issues with the right arrows and sizes. It also showed React Flow's controls in its light theme on a dark page, fixed with `colorMode="system"`.
+
+Carried to Phase 12: jsdom can't lay out React Flow edges, so edges are tested through `toFlow`, not the DOM. The Playwright smoke test should assert that the graph draws its arrows.
 
 ## [ ] Phase 12: End-to-end smoke + polish
 

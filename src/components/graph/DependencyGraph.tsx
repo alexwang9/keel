@@ -61,6 +61,8 @@ export function DependencyGraph({ graph }: { graph: Pick<RepoGraph, "nodes" | "e
         deleteKeyCode={null}
         fitView
         minZoom={0.2}
+        // Follows the OS theme like the rest of Keel; the default light theme hid the controls.
+        colorMode="system"
       >
         <Background />
         <Controls showInteractive={false} />
