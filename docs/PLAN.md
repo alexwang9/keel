@@ -181,7 +181,7 @@ Checked in a real browser (owner): `alexwang9/keel-test` drew all 7 issues with 
 
 Carried to Phase 12: jsdom can't lay out React Flow edges, so edges are tested through `toFlow`, not the DOM. The Playwright smoke test should assert that the graph draws its arrows.
 
-## [~] Phase 12: End-to-end smoke + polish (`9812a65`, `6b1a28d`, `1a40daf`)
+## [x] Phase 12: End-to-end smoke + polish (`9812a65`, `6b1a28d`, `1a40daf`)
 
 Split into 12a (fake externals + smoke test), 12b (polish) and 12c (README) on one branch (Rule 3), one PR as for Phases 6–11.
 
@@ -191,7 +191,7 @@ Done when:
 - [x] Playwright smoke test covers sign in → interview → approve → tickets → create → graph (plus a ticket edit and impact check, and the graph's arrows, carried from Phase 11)
 - [x] Empty, loading and error states reviewed on every screen, plus a visual design pass (carried from Phase 5): Markdown rendered in chat, tickets and the SPEC.md preview (carried from Phases 6 and 7), a step indicator, header navigation, loading fallbacks on signed-in pages, app-level error and not-found pages, and the Geist font actually applied
 - [x] README: what Keel is, screenshots (`pnpm screenshots`, taken in fake mode), setup (OAuth App, env), architecture sketch, deploy checklist
-- [ ] Deployed to Vercel with production env; one real end-to-end run (owner)
+- [x] Deployed to Vercel with production env; one real end-to-end run (owner). The run created `alexwang9/docsmith`: one Keel commit (SPEC.md with the `keel:spec v1` marker, `docs/interview.md`, README.md), the four Keel labels, and six issues, one per ticket marker `T1`–`T6`, each labelled `status:backlog` and one `size:*`, with every `Depends on #N` pointing at an earlier issue
 - [x] Committed
 
 Found during 12b: after a `next dev` recompile, fake mode's OAuth exchange reached the real github.com, because Next restores its own `fetch` and dropped MSW's patch. Fixed in `6b1a28d` by handing the fakes to each client explicitly (see DECISIONS.md).
