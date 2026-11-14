@@ -164,16 +164,20 @@ Done when:
 
 Carried from Phase 8 and done: the Create repo button is enabled once `createBlockers` is empty.
 
-## [ ] Phase 11: Dependency graph view
+## [x] Phase 11: Dependency graph view (`a5c2466`, `3ff94d3`)
+
+Split into 11a (backend) and 11b (UI) on one branch (Rule 3), one PR as for Phases 6–10.
 
 Done when:
 
-- [ ] `GET /api/github/graph?repo=owner/name` fetches issues and builds nodes and edges from `parseIssueBody`
-- [ ] React Flow + dagre top-to-bottom layout; nodes show number, title and size, and link to the issue
-- [ ] Shown automatically after creation and reachable later by repo URL; links to the repo and its issues list
-- [ ] Handles issues edited on GitHub (unknown `#N`, removed dependencies) gracefully
-- [ ] Tests: graph building from fixtures, layout is deterministic, component renders
-- [ ] Committed
+- [x] `GET /api/github/graph?repo=owner/name` fetches issues and builds nodes and edges from `parseIssueBody`
+- [x] React Flow + dagre top-to-bottom layout; nodes show number, title and size, and link to the issue
+- [x] Shown automatically after creation and reachable later by repo URL (`/app/graph/owner/name`, or any github.com link on `/app/graph`); links to the repo and its issues list
+- [x] Handles issues edited on GitHub (unknown `#N`, removed dependencies) gracefully: undrawable dependencies, self-references, cycles, label-only issues and truncation are listed as notes above the graph
+- [x] Tests: graph building from fixtures, layout is deterministic, component renders (plus the route against `fakeGitHub`, repo URL parsing, the form, and loading, empty and error states)
+- [x] Committed
+
+Carried to Phase 12: jsdom can't lay out React Flow edges, so edges are tested through `toFlow`, not the DOM. The Playwright smoke test should assert that the graph draws its arrows in a real browser.
 
 ## [ ] Phase 12: End-to-end smoke + polish
 
