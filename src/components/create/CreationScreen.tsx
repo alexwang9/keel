@@ -3,7 +3,9 @@
 import type { ReactNode } from "react";
 import type { CreationRunState } from "@/components/create/useRepoCreation";
 import { ErrorNotice } from "@/components/ErrorNotice";
+import { RepoGraphView } from "@/components/graph/RepoGraphView";
 import { buttonClass, primaryButtonClass } from "@/components/review/inputs";
+import { graphPath, parseRepoRef } from "@/lib/github/repo-ref";
 import type { Creation } from "@/lib/state/schema";
 import type { Ticket } from "@/lib/tickets/schema";
 
@@ -91,6 +93,23 @@ function RunStatus(props: CreationScreenProps) {
   );
 }
 
+/** The new repo's graph, shown once creation finishes, with a link to its own page. */
+function CreatedGraph({ fullName }: { fullName: string }) {
+  const ref = parseRepoRef(fullName);
+  if (!ref.ok) return null;
+  return (
+    <section aria-label="Dependencies" className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-base font-semibold">Dependency graph</h2>
+        <a href={graphPath(ref.value)} className={linkClass}>
+          Open full page
+        </a>
+      </div>
+      <RepoGraphView repo={ref.value} links={false} />
+    </section>
+  );
+}
+
 /**
  * Progress of repo creation from the saved log: the repo, the commit, the labels and each
  * issue. On failure it shows exactly what exists and offers Resume; once done, links to GitHub.
@@ -136,6 +155,7 @@ export function CreationScreen(props: CreationScreenProps) {
         </Step>
       </ul>
       <IssueSteps creation={creation} tickets={tickets} />
+      {done && repo && <CreatedGraph fullName={repo.fullName} />}
     </section>
   );
 }

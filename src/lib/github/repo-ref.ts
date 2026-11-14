@@ -29,3 +29,7 @@ export function parseRepoRef(input: string): Result<RepoRef, string> {
 }
 
 export const formatRepoRef = (ref: RepoRef): string => `${ref.owner}/${ref.name}`;
+
+/** The graph page's path for a repo, mirroring github.com/owner/name. */
+export const graphPath = ({ owner, name }: RepoRef): string =>
+  `/app/graph/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
