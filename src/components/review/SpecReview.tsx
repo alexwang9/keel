@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import type { SaveEdit } from "@/components/review/EditableSection";
+import { Markdown } from "@/components/Markdown";
 import { ApproveBar, BackToInterview, blockers } from "@/components/review/ReviewActions";
 import { SpecForm } from "@/components/review/SpecForm";
 import type { Result } from "@/lib/result";
@@ -23,9 +24,10 @@ interface SpecReviewProps {
 
 export function SpecMarkdown({ spec }: { spec: Spec }) {
   return (
-    <pre className="overflow-x-auto rounded-xl bg-zinc-100 p-4 text-sm whitespace-pre-wrap dark:bg-zinc-900">
-      {renderSpecMarkdown(spec)}
-    </pre>
+    // Rendered as GitHub will show it; the hidden `keel:spec` marker comment is dropped.
+    <div className="rounded-xl border border-zinc-200 p-5 text-sm leading-6 dark:border-zinc-800">
+      <Markdown text={renderSpecMarkdown(spec)} variant="document" />
+    </div>
   );
 }
 

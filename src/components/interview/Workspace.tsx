@@ -9,6 +9,7 @@ import { SpecPanel } from "@/components/interview/SpecPanel";
 import { useWorkspace, type Workspace as WorkspaceApi } from "@/components/interview/useWorkspace";
 import { ApprovedSpec, type TicketStatus } from "@/components/review/ApprovedSpec";
 import { SpecReview } from "@/components/review/SpecReview";
+import { StageSteps } from "@/components/StageSteps";
 import { TicketsScreen } from "@/components/tickets/TicketsScreen";
 import { awaitingReply, createBlockers, ticketsStale } from "@/lib/state/reducer";
 import { emptyState, type PersistedState, type Project } from "@/lib/state/schema";
@@ -148,13 +149,14 @@ function LoadedWorkspace({ initial, storage, problem }: LoadedWorkspaceProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <SaveWarning problem={workspace.saveProblem} />
-      {project && (
-        <div className="flex justify-end px-6 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-2.5 dark:border-zinc-800">
+        <StageSteps stage={project?.stage} />
+        {project && (
           <button type="button" onClick={startOver} className="text-xs text-zinc-500 underline">
             Start over
           </button>
-        </div>
-      )}
+        )}
+      </div>
       <Stage workspace={workspace} creation={creation} />
     </div>
   );

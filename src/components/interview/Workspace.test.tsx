@@ -207,7 +207,7 @@ describe("Workspace", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Approve spec" }));
       const approved = screen.getByRole("region", { name: "Approved spec" });
-      expect(approved).toHaveTextContent("# Shelfie");
+      expect(within(approved).getByRole("heading", { name: "Shelfie" })).toBeInTheDocument();
       expect(project()).toMatchObject({ stage: "approved", approved: { name: "Shelfie" } });
 
       await userEvent.click(screen.getByRole("button", { name: "Edit spec" }));

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Composer } from "@/components/interview/Composer";
+import { Markdown } from "@/components/Markdown";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import type { TurnError } from "@/lib/llm/interview/client";
 import { toTranscript, type HistoryMessage } from "@/lib/llm/interview/history";
@@ -26,10 +27,11 @@ const bubble = {
 function Bubble({ role, text }: { role: keyof typeof bubble; text: string }) {
   return (
     <li
-      className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-6 whitespace-pre-wrap ${bubble[role]}`}
+      className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-6 ${bubble[role]}`}
       aria-label={role === "user" ? "You" : "Keel"}
     >
-      {text}
+      {/* The user's words are shown as typed; the model writes Markdown. */}
+      {role === "user" ? <p className="whitespace-pre-wrap">{text}</p> : <Markdown text={text} />}
     </li>
   );
 }

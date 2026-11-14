@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { PageLoading } from "@/components/PageLoading";
 import { RepoGraphForm } from "@/components/graph/RepoGraphForm";
 import { RepoGraphView } from "@/components/graph/RepoGraphView";
 import { requireUser } from "@/lib/auth/session";
@@ -38,7 +39,7 @@ export default function RepoGraphPage({ params }: PageProps<"/app/graph/[owner]/
       <Link href="/app/graph" className="text-sm underline">
         Open another repo
       </Link>
-      <Suspense>
+      <Suspense fallback={<PageLoading />}>
         <Graph params={params} />
       </Suspense>
     </main>
