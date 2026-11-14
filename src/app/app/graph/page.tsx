@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { PageLoading } from "@/components/PageLoading";
 import { RepoGraphForm } from "@/components/graph/RepoGraphForm";
 import { requireUser } from "@/lib/auth/session";
 
@@ -16,7 +17,7 @@ export default function GraphIndexPage() {
         Open the graph of any repo Keel created. It&apos;s read from the repo&apos;s issues, so it
         reflects changes made on GitHub.
       </p>
-      <Suspense>
+      <Suspense fallback={<PageLoading />}>
         <SignedIn />
       </Suspense>
     </main>

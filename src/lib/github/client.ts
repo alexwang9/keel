@@ -2,6 +2,7 @@ import "server-only";
 import { retry } from "@octokit/plugin-retry";
 import { throttling } from "@octokit/plugin-throttling";
 import { Octokit } from "@octokit/rest";
+import { externalFetch } from "@/lib/external-fetch";
 import { logWarn } from "@/lib/log";
 
 const KeelOctokit = Octokit.plugin(retry, throttling);
@@ -28,7 +29,7 @@ export function createGitHubClient(
 ): GitHubClient {
   return new KeelOctokit({
     auth: token,
-    request: { retries: options.retries },
+    request: { retries: options.retries, fetch: externalFetch() },
     throttle: options.throttle
       ? {
           onRateLimit: (retryAfter, request, _octokit, retryCount) => {

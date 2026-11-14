@@ -151,7 +151,10 @@ describe("SpecReview", () => {
   it("previews SPEC.md for a complete spec only", async () => {
     const { unmount } = render(<Harness />);
     await userEvent.click(screen.getByRole("tab", { name: "Preview SPEC.md" }));
-    expect(screen.getByRole("tabpanel")).toHaveTextContent("<!-- keel:spec v1 --> # Shelf");
+    const preview = within(screen.getByRole("tabpanel"));
+    expect(preview.getByRole("heading", { level: 1, name: "Shelf" })).toBeInTheDocument();
+    expect(preview.getByRole("heading", { level: 2, name: "Problem" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).not.toHaveTextContent("keel:spec");
     unmount();
 
     render(<Harness initial={{ ...completeDraft, features: [] }} />);

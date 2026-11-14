@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Markdown } from "@/components/Markdown";
 import { EditableSection, type SaveEdit } from "@/components/review/EditableSection";
 import { buttonClass } from "@/components/review/inputs";
 import { trimDeep } from "@/components/review/issues";
@@ -42,9 +43,9 @@ function TicketView({ ticket, edited }: { ticket: Ticket; edited: boolean }) {
           </span>
         )}
       </div>
-      <p className="whitespace-pre-line">{ticket.description}</p>
+      <Markdown text={ticket.description} />
       <div>
-        <h3 className="font-medium">Acceptance checks</h3>
+        <h3 className="text-xs font-medium text-zinc-500">Acceptance checks</h3>
         <ul className="list-disc pl-5">
           {ticket.acceptanceChecks.map((check, index) => (
             // Checks have no ids; position is their identity (see DECISIONS.md, Phase 1).

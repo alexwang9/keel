@@ -7,6 +7,7 @@ import {
 import { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import type { Env } from "@/lib/env";
+import { externalFetch } from "@/lib/external-fetch";
 import { err, ok, type Result } from "@/lib/result";
 
 /** The only scope Keel asks for (see DECISIONS.md, GitHub section). */
@@ -49,8 +50,11 @@ const UserSchema = z.object({
   avatar_url: z.url({ protocol: /^https$/, hostname: /^avatars\.githubusercontent\.com$/ }),
 });
 
-/** Base request for the OAuth endpoints; `@octokit/oauth-methods` maps it to github.com. */
-const baseRequest = new Octokit().request;
+/**
+ * Base request for the OAuth endpoints; `@octokit/oauth-methods` maps it to github.com. Built
+ * per call so it picks up `externalFetch()` (the fakes under KEEL_FAKE_EXTERNALS=1).
+ */
+const baseRequest = () => new Octokit({ request: { fetch: externalFetch() } }).request;
 
 /** GitHub's authorize URL. `@octokit/oauth-methods` has no PKCE options, so we append them. */
 export function authorizationUrl(client: OAuthClient, params: AuthorizeParams): string {
@@ -60,12 +64,22 @@ export function authorizationUrl(client: OAuthClient, params: AuthorizeParams): 
     redirectUrl: params.redirectUrl,
     scopes: [OAUTH_SCOPE],
     state: params.state,
-    request: baseRequest,
+    request: baseRequest(),
   });
   const withPkce = new URL(url);
   withPkce.searchParams.set("code_challenge", params.codeChallenge);
   withPkce.searchParams.set("code_challenge_method", "S256");
   return withPkce.toString();
+}
+
+/**
+ * With `KEEL_FAKE_EXTERNALS=1`, the browser can't be sent to github.com, so sign-in goes to a
+ * local stand-in that approves at once. The code exchange still runs, against the fakes.
+ */
+export function fakeAuthorizationUrl(env: Env, state: string): string {
+  const url = new URL("/api/auth/fake-authorize", env.APP_URL);
+  url.searchParams.set("state", state);
+  return url.toString();
 }
 
 /**
@@ -84,7 +98,7 @@ export async function exchangeCode(
       clientSecret: client.clientSecret,
       code: params.code,
       redirectUrl: params.redirectUrl,
-      request: baseRequest.defaults({ code_verifier: params.codeVerifier }),
+      request: baseRequest().defaults({ code_verifier: params.codeVerifier }),
     });
     if (!authentication.scopes.includes(OAUTH_SCOPE)) {
       return err(new Error(`Token lacks the ${OAUTH_SCOPE} scope`));
@@ -98,7 +112,8 @@ export async function exchangeCode(
 /** The signed-in user's login and avatar, validated because later code depends on both. */
 export async function fetchUser(token: string): Promise<Result<GitHubUser, unknown>> {
   try {
-    const { data } = await new Octokit({ auth: token }).users.getAuthenticated();
+    const octokit = new Octokit({ auth: token, request: { fetch: externalFetch() } });
+    const { data } = await octokit.users.getAuthenticated();
     const parsed = UserSchema.safeParse(data);
     if (!parsed.success) return err(parsed.error);
     return ok({ login: parsed.data.login, avatarUrl: parsed.data.avatar_url });
@@ -118,7 +133,7 @@ export async function deleteGrant(
       clientId: client.clientId,
       clientSecret: client.clientSecret,
       token,
-      request: baseRequest,
+      request: baseRequest(),
     });
     return ok(undefined);
   } catch (error: unknown) {
