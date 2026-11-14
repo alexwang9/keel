@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GET as callback } from "@/app/api/auth/callback/route";
+import { GET as fakeAuthorize } from "@/app/api/auth/fake-authorize/route";
 import { GET as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { OAUTH_COOKIE, SESSION_COOKIE } from "@/lib/auth/cookies";
@@ -187,6 +188,13 @@ describe("GET /api/auth/callback", () => {
     expect(logged).toContain("auth.delete_grant_failed");
     expect(logged).not.toContain(FAKE_TOKEN);
     expect(logged).not.toContain(testEnv.GITHUB_CLIENT_SECRET);
+  });
+});
+
+describe("GET /api/auth/fake-authorize", () => {
+  it("doesn't exist unless KEEL_FAKE_EXTERNALS is on", () => {
+    const response = fakeAuthorize(new NextRequest(`${APP}/api/auth/fake-authorize?state=x`));
+    expect(response.status).toBe(404);
   });
 });
 

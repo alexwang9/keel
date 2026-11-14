@@ -31,7 +31,12 @@ export const reply = (
   content: FixtureBlock[],
   stopReason = "end_turn",
   extra: { stopDetails?: Record<string, unknown>; model?: string } = {},
-): FixtureReply => ({ kind: "message", content, stopReason, ...extra });
+): Extract<FixtureReply, { kind: "message" }> => ({
+  kind: "message",
+  content,
+  stopReason,
+  ...extra,
+});
 
 export const textBlock = (text: string): FixtureBlock => ({ type: "text", text });
 export const thinkingBlock = (thinking = ""): FixtureBlock => ({
@@ -137,7 +142,8 @@ function streamBody(fixture: Exclude<FixtureReply, { kind: "stall" }>): string {
   return frames.join("");
 }
 
-function toResponse(fixture: Exclude<FixtureReply, { kind: "stall" }>): Response {
+/** The Messages API response for a reply: an HTTP error, or the streamed message. */
+export function toResponse(fixture: Exclude<FixtureReply, { kind: "stall" }>): Response {
   // `x-should-retry: false` stops the SDK's automatic retries, so error tests run instantly.
   const headers = { "request-id": "req_fixture", "x-should-retry": "false" };
   if (fixture.kind === "httpError") {

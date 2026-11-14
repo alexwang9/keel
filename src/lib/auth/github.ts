@@ -69,6 +69,16 @@ export function authorizationUrl(client: OAuthClient, params: AuthorizeParams): 
 }
 
 /**
+ * With `KEEL_FAKE_EXTERNALS=1`, the browser can't be sent to github.com, so sign-in goes to a
+ * local stand-in that approves at once. The code exchange still runs, against the fakes.
+ */
+export function fakeAuthorizationUrl(env: Env, state: string): string {
+  const url = new URL("/api/auth/fake-authorize", env.APP_URL);
+  url.searchParams.set("state", state);
+  return url.toString();
+}
+
+/**
  * Exchanges the callback code for a user token. `exchangeWebFlowCode` builds its body from a
  * fixed field list, so `code_verifier` goes in through request defaults. The library still turns
  * GitHub's "error with HTTP 200" responses into thrown errors.
