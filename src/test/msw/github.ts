@@ -8,6 +8,8 @@ export interface FakeIssue {
   title: string;
   body: string | null;
   labels: string[];
+  /** Defaults to open. */
+  state?: "open" | "closed";
   pullRequest?: boolean;
 }
 
@@ -252,7 +254,10 @@ export function fakeGitHub(login = "octocat"): FakeGitHub {
           slice.map((issue) => ({
             number: issue.number,
             title: issue.title,
+            html_url: `https://github.com/${repo.owner}/${repo.name}/issues/${String(issue.number)}`,
+            state: issue.state ?? "open",
             body: issue.body,
+            labels: issue.labels.map((name) => ({ name })),
             ...(issue.pullRequest ? { pull_request: { url: "https://example.test" } } : {}),
           })),
           { headers: more ? { link: `<${next.toString()}>; rel="next"` } : {} },

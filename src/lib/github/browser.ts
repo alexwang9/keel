@@ -5,6 +5,8 @@ import {
   type CreateStep,
 } from "@/lib/github/events";
 import { NameCheckSchema, type NameCheck } from "@/lib/github/repo-name";
+import type { RepoRef } from "@/lib/github/repo-ref";
+import { RepoGraphSchema, type RepoGraph } from "@/lib/graph/schema";
 import type { CreateRequest } from "@/lib/github/request";
 import type { ClientErrorCode } from "@/lib/llm/interview/client";
 import { err, ok, type Result } from "@/lib/result";
@@ -110,5 +112,61 @@ export async function checkRepoName(
   } catch (error) {
     if (isAbort(error, signal)) throw error;
     return err(NAME_CHECK_COPY.failed);
+  }
+}
+
+/** Why the graph didn't load, as friendly copy. */
+export interface GraphLoadError {
+  code: "unauthorized" | "not_found" | "invalid_request" | "rate_limited" | "failed";
+  message: string;
+  retryable: boolean;
+}
+
+const GRAPH_COPY: Record<GraphLoadError["code"], Omit<GraphLoadError, "code">> = {
+  unauthorized: { message: "Sign in again to see the graph.", retryable: false },
+  not_found: {
+    message:
+      "Keel couldn't find that repo on GitHub. Check the name; Keel can see public repos only.",
+    retryable: false,
+  },
+  invalid_request: {
+    message: "That isn't a GitHub repo. Use owner/name or a github.com link.",
+    retryable: false,
+  },
+  rate_limited: {
+    message: "GitHub is limiting requests right now. Wait a few minutes, then try again.",
+    retryable: true,
+  },
+  failed: { message: "Keel couldn't load the graph from GitHub. Try again.", retryable: true },
+};
+
+const graphError = (code: GraphLoadError["code"]): GraphLoadError => ({
+  code,
+  ...GRAPH_COPY[code],
+});
+
+async function graphErrorFor(response: Response): Promise<GraphLoadError> {
+  if (response.status === 401) return graphError("unauthorized");
+  if (response.status === 404) return graphError("not_found");
+  if (response.status === 400) return graphError("invalid_request");
+  const body: unknown = await response.json().catch(() => null);
+  const code = typeof body === "object" && body !== null && "error" in body ? body.error : null;
+  return graphError(code === "rate_limited" ? "rate_limited" : "failed");
+}
+
+/** Loads a repo's dependency graph. Failures come back as friendly copy; aborts rethrow. */
+export async function fetchGraph(
+  ref: RepoRef,
+  signal?: AbortSignal,
+): Promise<Result<RepoGraph, GraphLoadError>> {
+  try {
+    const repo = encodeURIComponent(`${ref.owner}/${ref.name}`);
+    const response = await fetch(`/api/github/graph?repo=${repo}`, { signal });
+    if (!response.ok) return err(await graphErrorFor(response));
+    const parsed = RepoGraphSchema.safeParse(await response.json());
+    return parsed.success ? ok(parsed.data) : err(graphError("failed"));
+  } catch (error) {
+    if (isAbort(error, signal)) throw error;
+    return err(graphError("failed"));
   }
 }

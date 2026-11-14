@@ -1,17 +1,20 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Workspace } from "@/components/interview/Workspace";
 import type { CreateEvent } from "@/lib/github/events";
 import type { NameCheck } from "@/lib/github/repo-name";
 import { shelfTickets } from "@/test/fixtures/tickets";
 import { server } from "@/test/msw/server";
 import { events, sseApi, type SseReply } from "@/test/msw/sse-routes";
+import { stubReactFlowDom } from "@/test/react-flow";
 import { spec, storedProject as project, storeProject as store, T0 } from "@/test/stored-project";
 
 const repo = { fullName: "octocat/shelf", htmlUrl: "https://github.com/octocat/shelf" };
 const ticketSet = { items: shelfTickets, source: spec, generatedAt: T0 };
+
+beforeAll(stubReactFlowDom);
 
 const createApi = (replies: SseReply<CreateEvent>[]) => sseApi("/api/github/create", replies);
 
@@ -142,6 +145,44 @@ describe("repo creation: progress", () => {
       stage: "created",
       creation: { repo, committed: true, labelled: true, issues: { T1: 1, T2: 2, T3: 3, T4: 4 } },
     });
+  });
+
+  it("shows the new repo's dependency graph once done", async () => {
+    nameApi();
+    createApi([events(...upToLabels, ...allIssues, { type: "complete" })]);
+    const asked: string[] = [];
+    server.use(
+      http.get("*/api/github/graph", ({ request }) => {
+        asked.push(new URL(request.url).searchParams.get("repo") ?? "");
+        return HttpResponse.json({
+          repo,
+          nodes: [
+            {
+              number: 1,
+              title: "Club with a shared reading list",
+              url: `${repo.htmlUrl}/issues/1`,
+              size: "M",
+              state: "open",
+              ticketId: "T1",
+            },
+          ],
+          edges: [],
+          warnings: [],
+        });
+      }),
+    );
+    await openNameStep();
+    await userEvent.click(createButton());
+
+    const section = await screen.findByRole("region", { name: "Dependencies" });
+    expect(within(section).getByRole("link", { name: "Open full page" })).toHaveAttribute(
+      "href",
+      "/app/graph/octocat/shelf",
+    );
+    expect(
+      await within(section).findByRole("link", { name: "#1: Club with a shared reading list" }),
+    ).toHaveAttribute("href", `${repo.htmlUrl}/issues/1`);
+    expect(asked).toEqual(["octocat/shelf"]);
   });
 
   it("shows what was created when it fails, and resumes to finish", async () => {
